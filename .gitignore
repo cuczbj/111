@@ -1,3 +1,78 @@
 /data/spatialsense/images/
 /data/pretrained_checkpoints/
 /result/
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ===== Jupyter =====
+.ipynb_checkpoints/
+
+# ===== Logs / tmp =====
+*.log
+*.tmp
+
+# ===== Data / datasets (your case) =====
+data/
+*.h5
+*.hdf5
+*.npz
+*.npy
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.pkl
+*.pickle
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+# If you only want to ignore some subfolders instead of all data/, use these instead:
+# data/data_min/
+# data/spatialsense/
+# data/pretrained_checkpoints/
+
+# ===== Training outputs / results =====
+results/
+runs/
+wandb/
+tensorboard/
+checkpoints/
+outputs/
+logs/
+*.ckpt
+*.pth
+*.pt
+
+# ===== Large media (optional) =====
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.jpg
+*.jpeg
+*.png
+*.webp
+
