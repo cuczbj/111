@@ -1,0 +1,969 @@
+| distributed init (rank 0)
+DATALOADER:
+  batch_size: 64
+  crop: False
+  data_aug_color: True
+  data_aug_shift: True
+  datapath: /seu_share/home/huangjie/220235144/spatial-relation-benchmark-main/data/spatialsense/annots_spatialsenseplus.json
+  dataset_name: spatialsense
+  load_img: True
+  norm_data: True
+  num_workers: 4
+  object_dim: 3679
+  predicate_dim: 9
+  resize_mask: False
+  trans_vec: []
+EXP:
+  EXP_ID: spatialsenseplus_RegionViT_seed0
+  MODEL_NAME: regionvit
+  OUTPUT_DIR: ./results
+  SEED: 0
+MODEL:
+  CNNTRANSFORMER:
+    backbone: resnet50
+    pretrained_resnet: 
+    prompt_emb_pool: max
+    roi_pool_size: 3
+    use_attn_mask: True
+  CROSSATTNVIT:
+    decoder_attn_drop_rate: 0.0
+    decoder_depth: 1
+    decoder_drop_rate: 0.0
+    emb_pool: max-in-roi
+  REGIONVIT:
+    backbone: vit_base
+    box_feature_size: 128
+    hidden_dim: 512
+    pretrain_ckp: ./data/pretrained_checkpoints/ibot_vit_base_patch16.pth
+  RELATIVIT:
+    prompt_emb_pool: max-in-roi
+    use_attn_mask: True
+  VISION_TRANSFORMER:
+    depth: 12
+    drop_path_rate: 0.0
+    drop_rate: 0.0
+    embed_dim: 768
+    in_chans: 3
+    num_heads: 12
+    patch_size: 16
+    pretrained: 
+    readnet_d_hidden: 512
+    readnet_dropout: 0.0
+TRAIN:
+  early_stop: 20
+  l2: 0.0001
+  layer_decay: 0.75
+  learning_rate: 0.0001
+  lr_decay_ratio: 0.5
+  num_epochs: 100
+  optimizer: adamw
+  patience: 10
+  scheduler: cosine
+  warmup: 5
+5346 relations in train
+808 relations in valid
+1236 relations in test
+Resized position embedding: %s to %s torch.Size([1, 197, 768]) torch.Size([1, 197, 768])
+Position embedding grid-size from %s to %s [14, 14] (14, 14)
+Loading ViT pretrained weights from ./data/pretrained_checkpoints/ibot_vit_base_patch16.pth.
+missing keys: []
+unexpected keys: ['cls_token', 'masked_embed']
+vit Backbone frozen!
+Assigned values = [0.023757264018058777, 0.03167635202407837, 0.04223513603210449, 0.056313514709472656, 0.07508468627929688, 0.1001129150390625, 0.13348388671875, 0.177978515625, 0.2373046875, 0.31640625, 0.421875, 0.5625, 0.75, 1.0]
+Param groups = {
+  "layer_13_decay": {
+    "weight_decay": 0.0001,
+    "params": [
+      "subject_feature_extractor.fc.0.weight",
+      "rel_classifier.0.weight",
+      "rel_classifier.3.weight"
+    ],
+    "lr_scale": 1.0
+  },
+  "layer_13_no_decay": {
+    "weight_decay": 0.0,
+    "params": [
+      "subject_feature_extractor.fc.0.bias",
+      "subject_feature_extractor.fc.2.weight",
+      "subject_feature_extractor.fc.2.bias",
+      "rel_classifier.0.bias",
+      "rel_classifier.2.weight",
+      "rel_classifier.2.bias",
+      "rel_classifier.3.bias"
+    ],
+    "lr_scale": 1.0
+  }
+}
+DistributedDataParallel(
+  (module): RegionViT(
+    (backbone): VitModel(
+      (patch_embed): PatchEmbed(
+        (proj): Conv2d(3, 768, kernel_size=(16, 16), stride=(16, 16))
+        (norm): Identity()
+      )
+      (pos_drop): Dropout(p=0.0, inplace=False)
+      (blocks): Sequential(
+        (0): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (1): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (2): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (3): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (4): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (5): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (6): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (7): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (8): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (9): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (10): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+        (11): Block(
+          (norm1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (attn): Attention(
+            (qkv): Linear(in_features=768, out_features=2304, bias=True)
+            (attn_drop): Dropout(p=0.0, inplace=False)
+            (proj): Linear(in_features=768, out_features=768, bias=True)
+            (proj_drop): Dropout(p=0.0, inplace=False)
+          )
+          (drop_path): Identity()
+          (norm2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+          (mlp): Mlp(
+            (fc1): Linear(in_features=768, out_features=3072, bias=True)
+            (act): GELU()
+            (drop1): Dropout(p=0.0, inplace=False)
+            (fc2): Linear(in_features=3072, out_features=768, bias=True)
+            (drop2): Dropout(p=0.0, inplace=False)
+          )
+        )
+      )
+      (norm): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+      (pre_logits): None
+      (head): None
+    )
+    (subject_feature_extractor): RoiBoxFeatureExtractor(
+      (pooler): RoIAlign(output_size=(3, 3), spatial_scale=0.0625, sampling_ratio=-1, aligned=False)
+      (fc): Sequential(
+        (0): Linear(in_features=6912, out_features=128, bias=True)
+        (1): ReLU()
+        (2): SyncBatchNorm(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (rel_classifier): Sequential(
+      (0): Linear(in_features=128, out_features=512, bias=True)
+      (1): ReLU()
+      (2): SyncBatchNorm(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (3): Linear(in_features=512, out_features=9, bias=True)
+    )
+  )
+)
+
+Epoch #0
+Training..
+[0/84] Loss = 0.73, Forward time = 1.30, Backward time = 0.01, Data loading time = 4.36
+[50/84] Loss = 0.74, Forward time = 12.13, Backward time = 0.07, Data loading time = 22.60
+Train, acc avg: 0.4858764887856183 acc: 0.4831649831649832, pre: 0.471220259128088, rec: 0.4699579027937237, f1: 0.4705832344545539, loss: 0.7393217668646858, lr: 0
+{'next to': 0.504, 'to the right of': 0.45, 'behind': 0.483, 'in front of': 0.501, 'above': 0.575, 'in': 0.463, 'under': 0.477, 'on': 0.459, 'to the left of': 0.462}
+
+Validating..
+Valid, acc avg: 0.4662455235287213 acc: 0.47029702970297027, pre: 0.46907215285896514, rec: 0.4504950495049505, f1: 0.4595909558879365, loss: 0.7567574977874756
+{'above': 0.438, 'on': 0.472, 'behind': 0.488, 'in': 0.405, 'in front of': 0.61, 'to the right of': 0.3, 'to the left of': 0.537, 'next to': 0.438, 'under': 0.51}
+
+Testing..
+Test, acc avg: 0.47632839067431854 acc: 0.4749190938511327, pre: 0.47479674024720747, rec: 0.47249190938511326, f1: 0.4736365209774212, loss: 0.7509273290634155
+{'above': 0.547, 'behind': 0.5, 'in': 0.402, 'to the right of': 0.485, 'to the left of': 0.404, 'on': 0.417, 'under': 0.507, 'next to': 0.5, 'in front of': 0.524}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #1
+Training..
+[0/84] Loss = 0.74, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.86
+[50/84] Loss = 0.68, Forward time = 11.09, Backward time = 0.06, Data loading time = 18.28
+Train, acc avg: 0.5870696139593033 acc: 0.5931537598204265, pre: 0.5777698843118967, rec: 0.6226559510141599, f1: 0.5993687395809058, loss: 0.6641209423542023, lr: 2e-05
+{'in front of': 0.549, 'to the left of': 0.628, 'behind': 0.572, 'under': 0.661, 'to the right of': 0.634, 'next to': 0.537, 'on': 0.569, 'above': 0.575, 'in': 0.558}
+
+Validating..
+Valid, acc avg: 0.5917824015384991 acc: 0.5915841584158416, pre: 0.578389818254453, rec: 0.6757425742574258, f1: 0.6232826942860028, loss: 0.6740595698356628
+{'above': 0.562, 'on': 0.625, 'behind': 0.476, 'in': 0.568, 'in front of': 0.634, 'to the right of': 0.667, 'to the left of': 0.667, 'next to': 0.512, 'under': 0.615}
+
+Testing..
+Test, acc avg: 0.5970135388609595 acc: 0.6011326860841424, pre: 0.583001320278867, rec: 0.7103559870550162, f1: 0.6404035048245769, loss: 0.6656052470207214
+{'above': 0.613, 'behind': 0.535, 'in': 0.533, 'to the right of': 0.647, 'to the left of': 0.632, 'on': 0.642, 'under': 0.643, 'next to': 0.561, 'in front of': 0.566}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #2
+Training..
+[0/84] Loss = 0.58, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.56
+[50/84] Loss = 0.58, Forward time = 11.18, Backward time = 0.06, Data loading time = 15.18
+Train, acc avg: 0.6989239414868442 acc: 0.7074448185559297, pre: 0.6812996865492579, rec: 0.7543053960964409, f1: 0.7159412521298348, loss: 0.5654703119680995, lr: 4e-05
+{'to the right of': 0.777, 'under': 0.773, 'to the left of': 0.777, 'on': 0.668, 'in': 0.604, 'behind': 0.673, 'next to': 0.654, 'in front of': 0.67, 'above': 0.694}
+
+Validating..
+Valid, acc avg: 0.6393743728093322 acc: 0.6287128712871287, pre: 0.6069958722840356, rec: 0.7301980198019802, f1: 0.6629163833472717, loss: 0.6503987908363342
+{'above': 0.583, 'on': 0.625, 'behind': 0.634, 'in': 0.554, 'in front of': 0.695, 'to the right of': 0.767, 'to the left of': 0.778, 'next to': 0.512, 'under': 0.606}
+
+Testing..
+Test, acc avg: 0.6358882096400669 acc: 0.6407766990291263, pre: 0.6156914811743154, rec: 0.7491909385113269, f1: 0.6759074516959404, loss: 0.6444131731987
+{'above': 0.594, 'behind': 0.57, 'in': 0.63, 'to the right of': 0.735, 'to the left of': 0.699, 'on': 0.701, 'under': 0.65, 'next to': 0.553, 'in front of': 0.59}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #3
+Training..
+[0/84] Loss = 0.54, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.95
+[50/84] Loss = 0.50, Forward time = 11.21, Backward time = 0.07, Data loading time = 17.87
+Train, acc avg: 0.7584542546441171 acc: 0.7626262626262627, pre: 0.729665069276606, rec: 0.8170685036356679, f1: 0.7708922884826057, loss: 0.5006299323978878, lr: 6.000000000000001e-05
+{'in': 0.7, 'on': 0.734, 'behind': 0.728, 'in front of': 0.712, 'to the left of': 0.807, 'next to': 0.743, 'above': 0.769, 'under': 0.811, 'to the right of': 0.824}
+
+Validating..
+Valid, acc avg: 0.6711259458380054 acc: 0.6621287128712872, pre: 0.6334012090956984, rec: 0.7698019801980198, f1: 0.6949671065550772, loss: 0.6413685083389282
+{'above': 0.635, 'on': 0.665, 'behind': 0.695, 'in': 0.595, 'in front of': 0.622, 'to the right of': 0.8, 'to the left of': 0.815, 'next to': 0.55, 'under': 0.663}
+
+Testing..
+Test, acc avg: 0.6454351828049264 acc: 0.6464401294498382, pre: 0.6186107389435028, rec: 0.7637540453074434, f1: 0.6835576859783908, loss: 0.6349109411239624
+{'above': 0.67, 'behind': 0.599, 'in': 0.663, 'to the right of': 0.713, 'to the left of': 0.706, 'on': 0.681, 'under': 0.607, 'next to': 0.561, 'in front of': 0.608}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #4
+Training..
+[0/84] Loss = 0.46, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.58
+[50/84] Loss = 0.44, Forward time = 11.28, Backward time = 0.06, Data loading time = 14.42
+Train, acc avg: 0.8111049650789462 acc: 0.8157500935278713, pre: 0.7854137419866277, rec: 0.8572522005357827, f1: 0.8197571306915205, loss: 0.443510753767831, lr: 8e-05
+{'in front of': 0.781, 'under': 0.852, 'in': 0.762, 'to the left of': 0.863, 'on': 0.797, 'behind': 0.781, 'to the right of': 0.866, 'next to': 0.802, 'above': 0.795}
+
+Validating..
+Valid, acc avg: 0.6689235819147744 acc: 0.6608910891089109, pre: 0.6388888752374172, rec: 0.7400990099009901, f1: 0.6857748356191445, loss: 0.6309309601783752
+{'above': 0.656, 'on': 0.665, 'behind': 0.72, 'in': 0.581, 'in front of': 0.622, 'to the right of': 0.783, 'to the left of': 0.796, 'next to': 0.562, 'under': 0.635}
+
+Testing..
+Test, acc avg: 0.6740090640109763 acc: 0.6747572815533981, pre: 0.6467391216475663, rec: 0.7702265372168284, f1: 0.7030969530534892, loss: 0.6275726556777954
+{'above': 0.689, 'behind': 0.634, 'in': 0.696, 'to the right of': 0.721, 'to the left of': 0.757, 'on': 0.711, 'under': 0.621, 'next to': 0.605, 'in front of': 0.633}
+
+Epoch #5
+Training..
+[0/84] Loss = 0.37, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.57
+[50/84] Loss = 0.39, Forward time = 11.33, Backward time = 0.07, Data loading time = 14.45
+Train, acc avg: 0.8420777693416016 acc: 0.8415637860082305, pre: 0.8137881989559765, rec: 0.8763872942977421, f1: 0.8439235109532457, loss: 0.4012050266776766, lr: 9.938441702975689e-05
+{'to the left of': 0.893, 'to the right of': 0.893, 'behind': 0.801, 'next to': 0.834, 'in front of': 0.805, 'in': 0.817, 'on': 0.826, 'under': 0.864, 'above': 0.847}
+
+Validating..
+Valid, acc avg: 0.6558931559100937 acc: 0.6460396039603961, pre: 0.6204081506039153, rec: 0.7524752475247525, f1: 0.6800845241566273, loss: 0.6480953097343445
+{'above': 0.594, 'on': 0.631, 'behind': 0.72, 'in': 0.568, 'in front of': 0.585, 'to the right of': 0.7, 'to the left of': 0.815, 'next to': 0.637, 'under': 0.654}
+
+Testing..
+Test, acc avg: 0.6601789319610235 acc: 0.6593851132686084, pre: 0.6290956667222062, rec: 0.7766990291262136, f1: 0.6951434932798525, loss: 0.630317747592926
+{'above': 0.708, 'behind': 0.627, 'in': 0.652, 'to the right of': 0.706, 'to the left of': 0.743, 'on': 0.667, 'under': 0.579, 'next to': 0.623, 'in front of': 0.639}
+
+Epoch #6
+Training..
+[0/84] Loss = 0.36, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.60
+[50/84] Loss = 0.34, Forward time = 11.35, Backward time = 0.07, Data loading time = 14.10
+Train, acc avg: 0.8680141423415979 acc: 0.8696221473999252, pre: 0.84485240876583, rec: 0.8982013011863759, f1: 0.8707054464288281, loss: 0.3489232091676621, lr: 9.911436253643445e-05
+{'in front of': 0.838, 'next to': 0.859, 'in': 0.842, 'behind': 0.865, 'under': 0.891, 'to the left of': 0.897, 'above': 0.869, 'on': 0.844, 'to the right of': 0.908}
+
+Validating..
+Valid, acc avg: 0.6728131061633772 acc: 0.6596534653465347, pre: 0.6335403595540299, rec: 0.7574257425742574, f1: 0.6899612100477575, loss: 0.6470668911933899
+{'above': 0.615, 'on': 0.642, 'behind': 0.707, 'in': 0.595, 'in front of': 0.598, 'to the right of': 0.75, 'to the left of': 0.87, 'next to': 0.625, 'under': 0.654}
+
+Testing..
+Test, acc avg: 0.653068426483839 acc: 0.6545307443365695, pre: 0.6331938544882307, rec: 0.7346278317152104, f1: 0.6801448351722138, loss: 0.6500735878944397
+{'above': 0.613, 'behind': 0.648, 'in': 0.63, 'to the right of': 0.743, 'to the left of': 0.765, 'on': 0.642, 'under': 0.557, 'next to': 0.623, 'in front of': 0.657}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #7
+Training..
+[0/84] Loss = 0.31, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.62
+[50/84] Loss = 0.30, Forward time = 11.40, Backward time = 0.07, Data loading time = 16.26
+Train, acc avg: 0.8915806522080634 acc: 0.8937523381967827, pre: 0.8684684653388524, rec: 0.9223115193264447, f1: 0.8945755522566107, loss: 0.30902983904594467, lr: 9.879583809693738e-05
+{'to the right of': 0.924, 'under': 0.905, 'to the left of': 0.92, 'in front of': 0.875, 'behind': 0.897, 'on': 0.856, 'next to': 0.896, 'above': 0.888, 'in': 0.863}
+
+Validating..
+Valid, acc avg: 0.6731224061677991 acc: 0.6633663366336634, pre: 0.6380753004586758, rec: 0.754950495049505, f1: 0.6916050047147693, loss: 0.6438787579536438
+{'above': 0.594, 'on': 0.67, 'behind': 0.707, 'in': 0.595, 'in front of': 0.61, 'to the right of': 0.767, 'to the left of': 0.87, 'next to': 0.562, 'under': 0.683}
+
+Testing..
+Test, acc avg: 0.6700979531165574 acc: 0.6715210355987055, pre: 0.6468143954734848, rec: 0.7556634304207119, f1: 0.6970099503250383, loss: 0.6371203660964966
+{'above': 0.717, 'behind': 0.641, 'in': 0.63, 'to the right of': 0.706, 'to the left of': 0.757, 'on': 0.686, 'under': 0.593, 'next to': 0.632, 'in front of': 0.669}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #8
+Training..
+[0/84] Loss = 0.30, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.58
+[50/84] Loss = 0.26, Forward time = 11.35, Backward time = 0.06, Data loading time = 14.77
+Train, acc avg: 0.9092912538387158 acc: 0.9100261878039656, pre: 0.8890510916457989, rec: 0.9322617680826636, f1: 0.9101388457147055, loss: 0.26977480327089626, lr: 9.842915805643155e-05
+{'in': 0.854, 'under': 0.908, 'behind': 0.916, 'in front of': 0.889, 'to the right of': 0.952, 'to the left of': 0.935, 'on': 0.873, 'above': 0.933, 'next to': 0.924}
+
+Validating..
+Valid, acc avg: 0.6666182396365323 acc: 0.655940594059406, pre: 0.6412555910032379, rec: 0.7079207920792079, f1: 0.6729361807982202, loss: 0.6646856665611267
+{'above': 0.594, 'on': 0.659, 'behind': 0.732, 'in': 0.622, 'in front of': 0.598, 'to the right of': 0.75, 'to the left of': 0.833, 'next to': 0.588, 'under': 0.625}
+
+Testing..
+Test, acc avg: 0.6524054384153488 acc: 0.651294498381877, pre: 0.6318758726110596, rec: 0.7249190938511327, f1: 0.6752022528248418, loss: 0.6778784990310669
+{'above': 0.689, 'behind': 0.585, 'in': 0.641, 'to the right of': 0.728, 'to the left of': 0.713, 'on': 0.637, 'under': 0.543, 'next to': 0.649, 'in front of': 0.687}
+
+Epoch #9
+Training..
+[0/84] Loss = 0.26, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.56
+[50/84] Loss = 0.24, Forward time = 11.31, Backward time = 0.05, Data loading time = 14.11
+Train, acc avg: 0.916178376025746 acc: 0.9175084175084175, pre: 0.9098113173214667, rec: 0.9226942212016839, f1: 0.9162024847581431, loss: 0.246149351199468, lr: 9.801468428384716e-05
+{'under': 0.93, 'in front of': 0.896, 'in': 0.875, 'to the right of': 0.954, 'to the left of': 0.935, 'on': 0.885, 'next to': 0.916, 'above': 0.937, 'behind': 0.919}
+
+Validating..
+Valid, acc avg: 0.6576383932921873 acc: 0.6472772277227723, pre: 0.630769216906171, rec: 0.7103960396039604, f1: 0.6682138690214501, loss: 0.6837225556373596
+{'above': 0.594, 'on': 0.625, 'behind': 0.646, 'in': 0.595, 'in front of': 0.622, 'to the right of': 0.683, 'to the left of': 0.852, 'next to': 0.6, 'under': 0.702}
+
+Testing..
+Test, acc avg: 0.6624401970725236 acc: 0.6634304207119741, pre: 0.6406685147539204, rec: 0.7443365695792881, f1: 0.6886177773853963, loss: 0.6685877442359924
+{'above': 0.736, 'behind': 0.57, 'in': 0.663, 'to the right of': 0.728, 'to the left of': 0.735, 'on': 0.701, 'under': 0.593, 'next to': 0.579, 'in front of': 0.657}
+
+Epoch #10
+Training..
+[0/84] Loss = 0.19, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.57
+[50/84] Loss = 0.22, Forward time = 11.31, Backward time = 0.06, Data loading time = 14.39
+Train, acc avg: 0.9281595086062562 acc: 0.9287317620650954, pre: 0.9182908511308439, rec: 0.9376195943360123, f1: 0.9278495718098382, loss: 0.22255717767846017, lr: 9.755282581475769e-05
+{'in': 0.883, 'in front of': 0.923, 'behind': 0.92, 'next to': 0.945, 'to the left of': 0.943, 'under': 0.925, 'to the right of': 0.962, 'above': 0.948, 'on': 0.904}
+
+Validating..
+Valid, acc avg: 0.6652937485593312 acc: 0.6547029702970297, pre: 0.6332622466255385, rec: 0.7351485148514851, f1: 0.6804073910948131, loss: 0.6921132206916809
+{'above': 0.625, 'on': 0.648, 'behind': 0.622, 'in': 0.581, 'in front of': 0.659, 'to the right of': 0.767, 'to the left of': 0.796, 'next to': 0.675, 'under': 0.615}
+
+Testing..
+Test, acc avg: 0.6689634535465554 acc: 0.669093851132686, pre: 0.6453407420675836, rec: 0.7508090614886731, f1: 0.6940862724424407, loss: 0.675175130367279
+{'above': 0.698, 'behind': 0.641, 'in': 0.663, 'to the right of': 0.721, 'to the left of': 0.787, 'on': 0.681, 'under': 0.536, 'next to': 0.632, 'in front of': 0.663}
+
+Epoch #11
+Training..
+[0/84] Loss = 0.23, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.58
+[50/84] Loss = 0.20, Forward time = 11.33, Backward time = 0.07, Data loading time = 14.33
+Train, acc avg: 0.9390624921042589 acc: 0.9405162738496072, pre: 0.9335096300207418, rec: 0.9456563337160352, f1: 0.9395387246850517, loss: 0.2001183315047196, lr: 9.704403844771128e-05
+{'behind': 0.924, 'on': 0.904, 'in front of': 0.935, 'to the left of': 0.966, 'next to': 0.955, 'in': 0.925, 'above': 0.929, 'under': 0.949, 'to the right of': 0.964}
+
+Validating..
+Valid, acc avg: 0.6499884056455874 acc: 0.6386138613861386, pre: 0.6233480038910132, rec: 0.7004950495049505, f1: 0.6596686690027143, loss: 0.7100393176078796
+{'above': 0.583, 'on': 0.625, 'behind': 0.683, 'in': 0.595, 'in front of': 0.646, 'to the right of': 0.7, 'to the left of': 0.815, 'next to': 0.588, 'under': 0.615}
+
+Testing..
+Test, acc avg: 0.6609510370817513 acc: 0.6561488673139159, pre: 0.6392496300252579, rec: 0.7168284789644013, f1: 0.6758149959901405, loss: 0.7105002999305725
+{'above': 0.717, 'behind': 0.592, 'in': 0.728, 'to the right of': 0.735, 'to the left of': 0.728, 'on': 0.642, 'under': 0.536, 'next to': 0.614, 'in front of': 0.657}
+
+Epoch #12
+Training..
+[0/84] Loss = 0.18, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.60
+[50/84] Loss = 0.18, Forward time = 11.34, Backward time = 0.06, Data loading time = 14.12
+Train, acc avg: 0.943597562622656 acc: 0.9450056116722784, pre: 0.9387060123393642, rec: 0.9494833524684271, f1: 0.9440589253338473, loss: 0.1792547209631829, lr: 9.648882429441257e-05
+{'next to': 0.957, 'under': 0.947, 'in front of': 0.954, 'behind': 0.933, 'above': 0.955, 'on': 0.897, 'to the right of': 0.973, 'in': 0.904, 'to the left of': 0.973}
+
+Validating..
+Valid, acc avg: 0.6569676623199658 acc: 0.650990099009901, pre: 0.633187759100704, rec: 0.7178217821782178, f1: 0.6728488401593938, loss: 0.7211371064186096
+{'above': 0.583, 'on': 0.665, 'behind': 0.671, 'in': 0.581, 'in front of': 0.671, 'to the right of': 0.717, 'to the left of': 0.815, 'next to': 0.537, 'under': 0.673}
+
+Testing..
+Test, acc avg: 0.668883494306502 acc: 0.669093851132686, pre: 0.6453407420675836, rec: 0.7508090614886731, f1: 0.6940862724424407, loss: 0.719609260559082
+{'above': 0.764, 'behind': 0.655, 'in': 0.63, 'to the right of': 0.75, 'to the left of': 0.772, 'on': 0.662, 'under': 0.536, 'next to': 0.57, 'in front of': 0.681}
+
+Epoch #13
+Training..
+[0/84] Loss = 0.14, Forward time = 0.23, Backward time = 0.00, Data loading time = 1.56
+[50/84] Loss = 0.16, Forward time = 11.41, Backward time = 0.06, Data loading time = 14.06
+Train, acc avg: 0.945566465420819 acc: 0.9500561167227833, pre: 0.9406461271951685, rec: 0.9582854955989284, f1: 0.9493788849139093, loss: 0.16569919751158782, lr: 9.588773128419906e-05
+{'behind': 0.949, 'to the right of': 0.958, 'above': 0.937, 'next to': 0.959, 'under': 0.967, 'in front of': 0.938, 'to the left of': 0.956, 'in': 0.917, 'on': 0.93}
+
+Validating..
+Valid, acc avg: 0.6399942843709782 acc: 0.6349009900990099, pre: 0.6258660363541332, rec: 0.6707920792079208, f1: 0.6475457748872483, loss: 0.7313311696052551
+{'above': 0.604, 'on': 0.642, 'behind': 0.695, 'in': 0.459, 'in front of': 0.585, 'to the right of': 0.717, 'to the left of': 0.815, 'next to': 0.55, 'under': 0.692}
+
+Testing..
+Test, acc avg: 0.659316456943361 acc: 0.6610032362459547, pre: 0.645255465032767, rec: 0.7152103559870551, f1: 0.6784293902448622, loss: 0.7335066199302673
+{'above': 0.726, 'behind': 0.613, 'in': 0.62, 'to the right of': 0.743, 'to the left of': 0.721, 'on': 0.662, 'under': 0.543, 'next to': 0.596, 'in front of': 0.711}
+
+Epoch #14
+Training..
+[0/84] Loss = 0.12, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.56
+[50/84] Loss = 0.15, Forward time = 11.38, Backward time = 0.06, Data loading time = 13.85
+Train, acc avg: 0.9522096850478933 acc: 0.9528619528619529, pre: 0.9507445553618, rec: 0.9529276693455798, f1: 0.9518298605989054, loss: 0.15607584134808608, lr: 9.524135262330098e-05
+{'on': 0.905, 'next to': 0.956, 'to the left of': 0.975, 'under': 0.963, 'behind': 0.944, 'in front of': 0.955, 'in': 0.929, 'above': 0.97, 'to the right of': 0.973}
+
+Validating..
+Valid, acc avg: 0.64832916757036 acc: 0.6448019801980198, pre: 0.6314606599671763, rec: 0.6955445544554455, f1: 0.6619502453618952, loss: 0.7422940135002136
+{'above': 0.604, 'on': 0.682, 'behind': 0.695, 'in': 0.5, 'in front of': 0.646, 'to the right of': 0.733, 'to the left of': 0.796, 'next to': 0.562, 'under': 0.615}
+
+Testing..
+Test, acc avg: 0.6615427794142518 acc: 0.6610032362459547, pre: 0.6427546536190151, rec: 0.7249190938511327, f1: 0.6813638341933506, loss: 0.7384395003318787
+{'above': 0.717, 'behind': 0.627, 'in': 0.62, 'to the right of': 0.772, 'to the left of': 0.721, 'on': 0.632, 'under': 0.55, 'next to': 0.623, 'in front of': 0.693}
+
+Epoch #15
+Training..
+[0/84] Loss = 0.15, Forward time = 0.23, Backward time = 0.00, Data loading time = 1.52
+[50/84] Loss = 0.15, Forward time = 11.34, Backward time = 0.07, Data loading time = 14.09
+Train, acc avg: 0.9546822453350574 acc: 0.957351290684624, pre: 0.9535945190049656, rec: 0.959433601224646, f1: 0.9565001489538604, loss: 0.14420076770087084, lr: 9.45503262094184e-05
+{'to the right of': 0.962, 'on': 0.957, 'under': 0.964, 'next to': 0.971, 'above': 0.951, 'in': 0.929, 'behind': 0.948, 'to the left of': 0.96, 'in front of': 0.949}
+
+Validating..
+Valid, acc avg: 0.6571981573505963 acc: 0.6534653465346535, pre: 0.6359648983341032, rec: 0.7178217821782178, f1: 0.6744136151260423, loss: 0.7483585476875305
+{'above': 0.635, 'on': 0.688, 'behind': 0.622, 'in': 0.554, 'in front of': 0.622, 'to the right of': 0.75, 'to the left of': 0.833, 'next to': 0.537, 'under': 0.673}
+
+Testing..
+Test, acc avg: 0.6598937288519069 acc: 0.6610032362459547, pre: 0.6411347426789399, rec: 0.7313915857605178, f1: 0.6832905569315798, loss: 0.7485791444778442
+{'above': 0.689, 'behind': 0.627, 'in': 0.62, 'to the right of': 0.735, 'to the left of': 0.735, 'on': 0.657, 'under': 0.564, 'next to': 0.632, 'in front of': 0.681}
+
+Epoch #16
+Training..
+[0/84] Loss = 0.09, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.50
+[50/84] Loss = 0.12, Forward time = 11.32, Backward time = 0.06, Data loading time = 14.24
+Train, acc avg: 0.9583686605128288 acc: 0.9625888514777403, pre: 0.9603204846992731, rec: 0.9632606199770379, f1: 0.961783305422106, loss: 0.12898334257659458, lr: 9.381533400219318e-05
+{'next to': 0.97, 'in': 0.912, 'behind': 0.969, 'on': 0.938, 'in front of': 0.959, 'under': 0.97, 'to the left of': 0.979, 'above': 0.955, 'to the right of': 0.973}
+
+Validating..
+Valid, acc avg: 0.6652592095004018 acc: 0.6596534653465347, pre: 0.646924814420847, rec: 0.7029702970297029, f1: 0.6737791050522552, loss: 0.7334118485450745
+{'above': 0.667, 'on': 0.642, 'behind': 0.72, 'in': 0.541, 'in front of': 0.622, 'to the right of': 0.717, 'to the left of': 0.796, 'next to': 0.562, 'under': 0.721}
+
+Testing..
+Test, acc avg: 0.6472527469095286 acc: 0.6504854368932039, pre: 0.6392215473170427, rec: 0.6909385113268608, f1: 0.664069652509787, loss: 0.7633710503578186
+{'above': 0.679, 'behind': 0.606, 'in': 0.565, 'to the right of': 0.757, 'to the left of': 0.735, 'on': 0.652, 'under': 0.571, 'next to': 0.596, 'in front of': 0.663}
+
+Epoch #17
+Training..
+[0/84] Loss = 0.10, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.53
+[50/84] Loss = 0.12, Forward time = 11.32, Backward time = 0.06, Data loading time = 14.11
+Train, acc avg: 0.9602000096468432 acc: 0.9629629629629629, pre: 0.9589509655684113, rec: 0.965556831228473, f1: 0.9622375611790122, loss: 0.12029429108259224, lr: 9.30371013501972e-05
+{'in front of': 0.956, 'to the left of': 0.981, 'behind': 0.954, 'on': 0.936, 'above': 0.955, 'under': 0.968, 'in': 0.925, 'to the right of': 0.985, 'next to': 0.981}
+
+Validating..
+Valid, acc avg: 0.6669408988175927 acc: 0.6608910891089109, pre: 0.6470588088900723, rec: 0.7079207920792079, f1: 0.6761179335747151, loss: 0.7624512910842896
+{'above': 0.646, 'on': 0.676, 'behind': 0.634, 'in': 0.568, 'in front of': 0.646, 'to the right of': 0.767, 'to the left of': 0.815, 'next to': 0.588, 'under': 0.663}
+
+Testing..
+Test, acc avg: 0.6499464221358624 acc: 0.6521035598705501, pre: 0.634670478013317, rec: 0.7168284789644013, f1: 0.6732472930335097, loss: 0.7811113595962524
+{'above': 0.67, 'behind': 0.634, 'in': 0.609, 'to the right of': 0.728, 'to the left of': 0.743, 'on': 0.647, 'under': 0.557, 'next to': 0.588, 'in front of': 0.675}
+
+Epoch #18
+Training..
+[0/84] Loss = 0.11, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.53
+[50/84] Loss = 0.11, Forward time = 11.33, Backward time = 0.07, Data loading time = 14.26
+Train, acc avg: 0.9659680252402756 acc: 0.9653946876169098, pre: 0.9647779442389818, rec: 0.9644087256027555, f1: 0.9645882996153957, loss: 0.11517867055677232, lr: 9.221639627510076e-05
+{'to the left of': 0.975, 'behind': 0.961, 'in front of': 0.951, 'under': 0.961, 'above': 0.97, 'on': 0.955, 'to the right of': 0.992, 'in': 0.95, 'next to': 0.979}
+
+Validating..
+Valid, acc avg: 0.661313166834847 acc: 0.6522277227722773, pre: 0.6357615753695017, rec: 0.7128712871287128, f1: 0.6721070272097108, loss: 0.7866809368133545
+{'above': 0.604, 'on': 0.642, 'behind': 0.695, 'in': 0.541, 'in front of': 0.695, 'to the right of': 0.783, 'to the left of': 0.796, 'next to': 0.512, 'under': 0.683}
+
+Testing..
+Test, acc avg: 0.6496934411407357 acc: 0.6529126213592233, pre: 0.6321678233263242, rec: 0.7313915857605178, f1: 0.6781645638105812, loss: 0.7852945923805237
+{'above': 0.66, 'behind': 0.563, 'in': 0.609, 'to the right of': 0.75, 'to the left of': 0.735, 'on': 0.672, 'under': 0.557, 'next to': 0.614, 'in front of': 0.687}
+
+Epoch #19
+Training..
+[0/84] Loss = 0.13, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.54
+[50/84] Loss = 0.11, Forward time = 11.40, Backward time = 0.06, Data loading time = 14.12
+Train, acc avg: 0.9653147526627013 acc: 0.9657687991021324, pre: 0.9616261361640344, rec: 0.9686184462303865, f1: 0.9651046264688089, loss: 0.11069528838353497, lr: 9.135402871372808e-05
+{'in front of': 0.965, 'under': 0.969, 'next to': 0.973, 'in': 0.942, 'behind': 0.963, 'to the right of': 0.987, 'to the left of': 0.975, 'above': 0.981, 'on': 0.933}
+
+Validating..
+Valid, acc avg: 0.677148733364858 acc: 0.6658415841584159, pre: 0.6529680216217347, rec: 0.7079207920792079, f1: 0.6793299169859238, loss: 0.7893030047416687
+{'above': 0.635, 'on': 0.648, 'behind': 0.695, 'in': 0.568, 'in front of': 0.695, 'to the right of': 0.717, 'to the left of': 0.87, 'next to': 0.613, 'under': 0.654}
+
+Testing..
+Test, acc avg: 0.6502534354955141 acc: 0.651294498381877, pre: 0.6349206257587211, rec: 0.7119741100323624, f1: 0.6712383369863992, loss: 0.7979888916015625
+{'above': 0.736, 'behind': 0.585, 'in': 0.63, 'to the right of': 0.699, 'to the left of': 0.735, 'on': 0.662, 'under': 0.579, 'next to': 0.553, 'in front of': 0.675}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #20
+Training..
+[0/84] Loss = 0.10, Forward time = 0.23, Backward time = 0.00, Data loading time = 1.52
+[50/84] Loss = 0.10, Forward time = 11.40, Backward time = 0.06, Data loading time = 14.15
+Train, acc avg: 0.9695739100544145 acc: 0.9708193041526375, pre: 0.9683568396173966, rec: 0.9720627631075393, f1: 0.9702012625149634, loss: 0.10437780663016297, lr: 9.045084971874738e-05
+{'to the right of': 0.987, 'under': 0.976, 'above': 0.966, 'in': 0.958, 'in front of': 0.965, 'next to': 0.973, 'on': 0.942, 'behind': 0.98, 'to the left of': 0.979}
+
+Validating..
+Valid, acc avg: 0.6699924480073531 acc: 0.6621287128712872, pre: 0.651972142645658, rec: 0.6955445544554455, f1: 0.6730488894199809, loss: 0.8065063953399658
+{'above': 0.604, 'on': 0.682, 'behind': 0.634, 'in': 0.541, 'in front of': 0.634, 'to the right of': 0.767, 'to the left of': 0.87, 'next to': 0.625, 'under': 0.673}
+
+Testing..
+Test, acc avg: 0.6618327527022049 acc: 0.6618122977346278, pre: 0.645772585338592, rec: 0.7168284789644013, f1: 0.6794428611835176, loss: 0.8037407994270325
+{'above': 0.689, 'behind': 0.599, 'in': 0.652, 'to the right of': 0.743, 'to the left of': 0.772, 'on': 0.632, 'under': 0.571, 'next to': 0.588, 'in front of': 0.711}
+
+Epoch #21
+Training..
+[0/84] Loss = 0.06, Forward time = 0.23, Backward time = 0.00, Data loading time = 1.55
+[50/84] Loss = 0.10, Forward time = 11.32, Backward time = 0.06, Data loading time = 14.02
+Train, acc avg: 0.9741195193471524 acc: 0.9739992517770295, pre: 0.9714176792247801, rec: 0.9755070799846919, f1: 0.9734530848797853, loss: 0.09631042510625862, lr: 8.950775061878452e-05
+{'under': 0.97, 'to the right of': 0.987, 'on': 0.957, 'next to': 0.971, 'to the left of': 0.985, 'in front of': 0.978, 'above': 0.985, 'behind': 0.979, 'in': 0.954}
+
+Validating..
+Valid, acc avg: 0.6587627575601831 acc: 0.6522277227722773, pre: 0.641379295600476, rec: 0.6905940594059405, f1: 0.6650724721188752, loss: 0.79732745885849
+{'above': 0.594, 'on': 0.682, 'behind': 0.695, 'in': 0.554, 'in front of': 0.659, 'to the right of': 0.75, 'to the left of': 0.815, 'next to': 0.575, 'under': 0.606}
+
+Testing..
+Test, acc avg: 0.6469673013538048 acc: 0.6480582524271845, pre: 0.6351550866299102, rec: 0.6957928802588996, f1: 0.6640876693805253, loss: 0.8416956663131714
+{'above': 0.726, 'behind': 0.634, 'in': 0.576, 'to the right of': 0.721, 'to the left of': 0.772, 'on': 0.627, 'under': 0.521, 'next to': 0.57, 'in front of': 0.675}
+
+Epoch #22
+Training..
+[0/84] Loss = 0.11, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.63
+[50/84] Loss = 0.10, Forward time = 11.25, Backward time = 0.06, Data loading time = 14.46
+Train, acc avg: 0.9694263111150483 acc: 0.9704451926674149, pre: 0.9665526379074395, rec: 0.9732108687332568, f1: 0.969865326229098, loss: 0.09843376806626718, lr: 8.852566213878947e-05
+{'next to': 0.982, 'in front of': 0.973, 'above': 0.97, 'behind': 0.971, 'under': 0.963, 'to the right of': 0.989, 'to the left of': 0.973, 'on': 0.962, 'in': 0.942}
+
+Validating..
+Valid, acc avg: 0.6786938183279646 acc: 0.6707920792079208, pre: 0.6554053906440228, rec: 0.7202970297029703, f1: 0.6863157577848008, loss: 0.7961611747741699
+{'above': 0.625, 'on': 0.665, 'behind': 0.707, 'in': 0.581, 'in front of': 0.707, 'to the right of': 0.75, 'to the left of': 0.833, 'next to': 0.537, 'under': 0.702}
+
+Testing..
+Test, acc avg: 0.6587217076365494 acc: 0.6618122977346278, pre: 0.6428571336734695, rec: 0.7281553398058253, f1: 0.6828478214929469, loss: 0.7981992959976196
+{'above': 0.717, 'behind': 0.606, 'in': 0.576, 'to the right of': 0.743, 'to the left of': 0.743, 'on': 0.652, 'under': 0.6, 'next to': 0.588, 'in front of': 0.705}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #23
+Training..
+[0/84] Loss = 0.06, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.57
+[50/84] Loss = 0.08, Forward time = 11.27, Backward time = 0.07, Data loading time = 14.21
+Train, acc avg: 0.9730953487183138 acc: 0.9741863075196409, pre: 0.9692832727748074, rec: 0.9781859931113662, f1: 0.9737092839897553, loss: 0.08871383111303051, lr: 8.750555348152298e-05
+{'on': 0.96, 'in front of': 0.955, 'under': 0.977, 'to the left of': 0.987, 'above': 0.981, 'next to': 0.986, 'behind': 0.978, 'to the right of': 0.987, 'in': 0.946}
+
+Validating..
+Valid, acc avg: 0.658297697677779 acc: 0.6547029702970297, pre: 0.6436781461223415, rec: 0.693069306930693, f1: 0.6674562623167891, loss: 0.8429536819458008
+{'above': 0.635, 'on': 0.67, 'behind': 0.707, 'in': 0.554, 'in front of': 0.634, 'to the right of': 0.717, 'to the left of': 0.778, 'next to': 0.575, 'under': 0.654}
+
+Testing..
+Test, acc avg: 0.6495465592273264 acc: 0.6504854368932039, pre: 0.6328571338163267, rec: 0.7168284789644013, f1: 0.6722256667941442, loss: 0.8470183610916138
+{'above': 0.708, 'behind': 0.634, 'in': 0.63, 'to the right of': 0.743, 'to the left of': 0.691, 'on': 0.637, 'under': 0.543, 'next to': 0.561, 'in front of': 0.699}
+
+Epoch #24
+Training..
+[0/84] Loss = 0.08, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.98
+[50/84] Loss = 0.08, Forward time = 11.23, Backward time = 0.08, Data loading time = 16.92
+Train, acc avg: 0.9741783151111988 acc: 0.9756827534605312, pre: 0.9718738085447594, rec: 0.9785686949866055, f1: 0.9752047617641602, loss: 0.08321778866506759, lr: 8.644843137107059e-05
+{'to the right of': 0.987, 'on': 0.957, 'in front of': 0.975, 'behind': 0.986, 'to the left of': 0.981, 'under': 0.975, 'next to': 0.979, 'in': 0.946, 'above': 0.981}
+
+Validating..
+Valid, acc avg: 0.6632422449834374 acc: 0.6596534653465347, pre: 0.64365254691197, rec: 0.7153465346534653, f1: 0.6776034468054953, loss: 0.8435457944869995
+{'above': 0.625, 'on': 0.676, 'behind': 0.707, 'in': 0.541, 'in front of': 0.634, 'to the right of': 0.717, 'to the left of': 0.796, 'next to': 0.6, 'under': 0.673}
+
+Testing..
+Test, acc avg: 0.655269658619718 acc: 0.6577669902912622, pre: 0.6382978632865551, rec: 0.7281553398058253, f1: 0.6802671253597337, loss: 0.8571165204048157
+{'above': 0.717, 'behind': 0.599, 'in': 0.587, 'to the right of': 0.757, 'to the left of': 0.735, 'on': 0.652, 'under': 0.579, 'next to': 0.579, 'in front of': 0.693}
+
+Epoch #25
+Training..
+[0/84] Loss = 0.08, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.59
+[50/84] Loss = 0.07, Forward time = 11.27, Backward time = 0.06, Data loading time = 14.28
+Train, acc avg: 0.977297939064069 acc: 0.9777403666292556, pre: 0.9770466680296607, rec: 0.9774205893608878, f1: 0.9772285929524275, loss: 0.07719707781715053, lr: 8.535533905932738e-05
+{'on': 0.964, 'next to': 0.982, 'in front of': 0.975, 'to the left of': 0.985, 'above': 0.989, 'under': 0.974, 'in': 0.95, 'behind': 0.983, 'to the right of': 0.994}
+
+Validating..
+Valid, acc avg: 0.6693748300624995 acc: 0.6658415841584159, pre: 0.6509008862409711, rec: 0.7153465346534653, f1: 0.681598776708601, loss: 0.8268924355506897
+{'above': 0.615, 'on': 0.688, 'behind': 0.707, 'in': 0.568, 'in front of': 0.671, 'to the right of': 0.717, 'to the left of': 0.815, 'next to': 0.562, 'under': 0.683}
+
+Testing..
+Test, acc avg: 0.6628399508612595 acc: 0.6658576051779935, pre: 0.6487663185955542, rec: 0.7233009708737864, f1: 0.6840041908890763, loss: 0.852645754814148
+{'above': 0.726, 'behind': 0.599, 'in': 0.576, 'to the right of': 0.743, 'to the left of': 0.735, 'on': 0.691, 'under': 0.607, 'next to': 0.632, 'in front of': 0.657}
+
+Epoch #26
+Training..
+[0/84] Loss = 0.05, Forward time = 0.23, Backward time = 0.00, Data loading time = 1.56
+[50/84] Loss = 0.08, Forward time = 11.33, Backward time = 0.07, Data loading time = 14.09
+Train, acc avg: 0.9735875203590802 acc: 0.9758698092031426, pre: 0.9736842068127985, rec: 0.9770378874856487, f1: 0.975353164366373, loss: 0.08066440905843462, lr: 8.422735529643444e-05
+{'under': 0.978, 'next to': 0.992, 'on': 0.967, 'in front of': 0.965, 'in': 0.933, 'to the left of': 0.975, 'behind': 0.98, 'above': 0.993, 'to the right of': 0.979}
+
+Validating..
+Valid, acc avg: 0.6750234410126009 acc: 0.6646039603960396, pre: 0.6474500965088671, rec: 0.7227722772277227, f1: 0.6830359428290402, loss: 0.8576474189758301
+{'above': 0.667, 'on': 0.659, 'behind': 0.707, 'in': 0.608, 'in front of': 0.598, 'to the right of': 0.75, 'to the left of': 0.852, 'next to': 0.6, 'under': 0.635}
+
+Testing..
+Test, acc avg: 0.6640861177887828 acc: 0.6682847896440129, pre: 0.6481481389152687, rec: 0.7362459546925566, f1: 0.6893889544551668, loss: 0.8513241410255432
+{'above': 0.67, 'behind': 0.634, 'in': 0.576, 'to the right of': 0.757, 'to the left of': 0.779, 'on': 0.662, 'under': 0.586, 'next to': 0.614, 'in front of': 0.699}
+
+Epoch #27
+Training..
+[0/84] Loss = 0.09, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.53
+[50/84] Loss = 0.06, Forward time = 11.34, Backward time = 0.06, Data loading time = 14.25
+Train, acc avg: 0.9798089628173821 acc: 0.9812944257388702, pre: 0.9808649024842521, rec: 0.9808649062380406, f1: 0.9808599043866337, loss: 0.06853559555574543, lr: 8.306559326618259e-05
+{'under': 0.985, 'behind': 0.986, 'in': 0.971, 'on': 0.967, 'in front of': 0.973, 'next to': 0.989, 'to the right of': 0.989, 'above': 0.974, 'to the left of': 0.983}
+
+Validating..
+Valid, acc avg: 0.6858797443993921 acc: 0.6794554455445545, pre: 0.6539277992796646, rec: 0.7623762376237624, f1: 0.7039950213053081, loss: 0.8641127943992615
+{'above': 0.656, 'on': 0.688, 'behind': 0.707, 'in': 0.568, 'in front of': 0.646, 'to the right of': 0.767, 'to the left of': 0.852, 'next to': 0.588, 'under': 0.702}
+
+Testing..
+Test, acc avg: 0.664831850151546 acc: 0.6658576051779935, pre: 0.642559100937982, rec: 0.7475728155339806, f1: 0.6910944998396912, loss: 0.8666095733642578
+{'above': 0.679, 'behind': 0.62, 'in': 0.62, 'to the right of': 0.735, 'to the left of': 0.75, 'on': 0.657, 'under': 0.629, 'next to': 0.632, 'in front of': 0.663}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #28
+Training..
+[0/84] Loss = 0.05, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.58
+[50/84] Loss = 0.07, Forward time = 11.35, Backward time = 0.06, Data loading time = 17.33
+Train, acc avg: 0.975656620395761 acc: 0.9769921436588104, pre: 0.9730243124125215, rec: 0.9800995024875622, f1: 0.9765440926049411, loss: 0.07172209257259965, lr: 8.18711994874345e-05
+{'on': 0.966, 'to the right of': 0.987, 'behind': 0.985, 'next to': 0.986, 'under': 0.971, 'above': 0.97, 'in front of': 0.98, 'to the left of': 0.977, 'in': 0.958}
+
+Validating..
+Valid, acc avg: 0.6889669017379044 acc: 0.6794554455445545, pre: 0.6643990779047828, rec: 0.7252475247524752, f1: 0.6934861256757746, loss: 0.8577185869216919
+{'above': 0.646, 'on': 0.653, 'behind': 0.732, 'in': 0.541, 'in front of': 0.646, 'to the right of': 0.75, 'to the left of': 0.87, 'next to': 0.613, 'under': 0.75}
+
+Testing..
+Test, acc avg: 0.6607808719079357 acc: 0.6618122977346278, pre: 0.6432664664288472, rec: 0.7265372168284789, f1: 0.682365833997162, loss: 0.8942816257476807
+{'above': 0.67, 'behind': 0.627, 'in': 0.62, 'to the right of': 0.75, 'to the left of': 0.75, 'on': 0.642, 'under': 0.6, 'next to': 0.614, 'in front of': 0.675}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #29
+Training..
+[0/84] Loss = 0.12, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.76
+[50/84] Loss = 0.06, Forward time = 11.36, Backward time = 0.06, Data loading time = 16.19
+Train, acc avg: 0.9834684814218727 acc: 0.9824167601945379, pre: 0.979809520076916, rec: 0.9843092231151933, f1: 0.9820492173444552, loss: 0.0660955820764814, lr: 8.064535268264883e-05
+{'under': 0.98, 'behind': 0.99, 'next to': 0.986, 'to the right of': 0.989, 'to the left of': 0.981, 'on': 0.976, 'in front of': 0.972, 'above': 0.989, 'in': 0.988}
+
+Validating..
+Valid, acc avg: 0.6852466658530343 acc: 0.6757425742574258, pre: 0.6643518364733372, rec: 0.7103960396039604, f1: 0.6865978682456233, loss: 0.8638453483581543
+{'above': 0.615, 'on': 0.659, 'behind': 0.707, 'in': 0.554, 'in front of': 0.707, 'to the right of': 0.733, 'to the left of': 0.87, 'next to': 0.6, 'under': 0.721}
+
+Testing..
+Test, acc avg: 0.6620984285227733 acc: 0.6601941747572816, pre: 0.6394366107121604, rec: 0.7346278317152104, f1: 0.6837299586432368, loss: 0.8817375302314758
+{'above': 0.745, 'behind': 0.62, 'in': 0.609, 'to the right of': 0.765, 'to the left of': 0.779, 'on': 0.623, 'under': 0.571, 'next to': 0.596, 'in front of': 0.651}
+
+Epoch #30
+Training..
+[0/84] Loss = 0.04, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.56
+[50/84] Loss = 0.06, Forward time = 11.39, Backward time = 0.06, Data loading time = 14.99
+Train, acc avg: 0.9815364935446477 acc: 0.9827908716797605, pre: 0.9827652202881454, rec: 0.9820130118637581, f1: 0.9823839721119599, loss: 0.0631769449849214, lr: 7.938926261462367e-05
+{'next to': 0.99, 'behind': 0.989, 'to the left of': 0.983, 'on': 0.986, 'in front of': 0.975, 'under': 0.98, 'to the right of': 0.989, 'above': 0.97, 'in': 0.971}
+
+Validating..
+Valid, acc avg: 0.6752405473442058 acc: 0.6683168316831684, pre: 0.6566820125188477, rec: 0.7054455445544554, f1: 0.680185929115446, loss: 0.8802614808082581
+{'above': 0.635, 'on': 0.67, 'behind': 0.707, 'in': 0.581, 'in front of': 0.659, 'to the right of': 0.733, 'to the left of': 0.833, 'next to': 0.575, 'under': 0.683}
+
+Testing..
+Test, acc avg: 0.6520763665431721 acc: 0.651294498381877, pre: 0.6330014134708192, rec: 0.7200647249190939, f1: 0.6737270368342207, loss: 0.9147437214851379
+{'above': 0.745, 'behind': 0.577, 'in': 0.554, 'to the right of': 0.779, 'to the left of': 0.735, 'on': 0.593, 'under': 0.586, 'next to': 0.605, 'in front of': 0.693}
+
+Epoch #31
+Training..
+[0/84] Loss = 0.04, Forward time = 0.23, Backward time = 0.00, Data loading time = 1.56
+[50/84] Loss = 0.06, Forward time = 11.39, Backward time = 0.07, Data loading time = 14.00
+Train, acc avg: 0.9803364970999243 acc: 0.9824167601945379, pre: 0.9801753679749318, rec: 0.983926521239954, f1: 0.982042362568432, loss: 0.06208287709436956, lr: 7.810416889260655e-05
+{'next to': 0.988, 'to the right of': 0.985, 'on': 0.969, 'behind': 0.986, 'in front of': 0.975, 'under': 0.988, 'in': 0.95, 'above': 0.989, 'to the left of': 0.994}
+
+Validating..
+Valid, acc avg: 0.6755044445254472 acc: 0.6707920792079208, pre: 0.6554053906440228, rec: 0.7202970297029703, f1: 0.6863157577848008, loss: 0.8896602988243103
+{'above': 0.656, 'on': 0.682, 'behind': 0.707, 'in': 0.527, 'in front of': 0.671, 'to the right of': 0.683, 'to the left of': 0.87, 'next to': 0.6, 'under': 0.683}
+
+Testing..
+Test, acc avg: 0.6617218487359432 acc: 0.6601941747572816, pre: 0.6430635745222028, rec: 0.7200647249190939, f1: 0.6793843237822695, loss: 0.9193150401115417
+{'above': 0.745, 'behind': 0.599, 'in': 0.63, 'to the right of': 0.772, 'to the left of': 0.713, 'on': 0.627, 'under': 0.6, 'next to': 0.588, 'in front of': 0.681}
+
+Epoch #32
+Training..
+[0/84] Loss = 0.02, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.53
+[50/84] Loss = 0.06, Forward time = 11.33, Backward time = 0.05, Data loading time = 14.25
+Train, acc avg: 0.9840208134831752 acc: 0.9837261503928171, pre: 0.9816933601003304, rec: 0.9850746268656716, f1: 0.9833760869869413, loss: 0.05474813502015812, lr: 7.679133974894983e-05
+{'next to': 0.992, 'to the right of': 0.989, 'under': 0.981, 'in front of': 0.979, 'to the left of': 0.983, 'behind': 0.985, 'in': 0.979, 'on': 0.979, 'above': 0.989}
+
+Validating..
+Valid, acc avg: 0.6770712983958241 acc: 0.6695544554455446, pre: 0.654627524726241, rec: 0.7178217821782178, f1: 0.6847647782312241, loss: 0.8955850005149841
+{'above': 0.635, 'on': 0.676, 'behind': 0.695, 'in': 0.581, 'in front of': 0.646, 'to the right of': 0.75, 'to the left of': 0.852, 'next to': 0.575, 'under': 0.683}
+
+Testing..
+Test, acc avg: 0.6556039489564527 acc: 0.6537216828478964, pre: 0.6353276262773843, rec: 0.7216828478964401, f1: 0.6757525909228348, loss: 0.9232400059700012
+{'above': 0.755, 'behind': 0.585, 'in': 0.598, 'to the right of': 0.735, 'to the left of': 0.721, 'on': 0.613, 'under': 0.6, 'next to': 0.614, 'in front of': 0.681}
+
+Epoch #33
+Training..
+[0/84] Loss = 0.02, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.89
+[50/84] Loss = 0.05, Forward time = 11.32, Backward time = 0.07, Data loading time = 17.33
+Train, acc avg: 0.9832046480437704 acc: 0.9842873176206509, pre: 0.9831868514207609, rec: 0.9846919249904325, f1: 0.9839338126785453, loss: 0.0545587967194262, lr: 7.545207078751857e-05
+{'above': 0.993, 'under': 0.98, 'behind': 0.993, 'next to': 0.989, 'to the right of': 0.987, 'in front of': 0.982, 'on': 0.979, 'to the left of': 0.992, 'in': 0.954}
+
+Validating..
+Valid, acc avg: 0.6615884097422038 acc: 0.6584158415841584, pre: 0.6441441296363936, rec: 0.7079207920792079, f1: 0.674523305094308, loss: 0.9152167439460754
+{'above': 0.635, 'on': 0.693, 'behind': 0.659, 'in': 0.527, 'in front of': 0.61, 'to the right of': 0.733, 'to the left of': 0.852, 'next to': 0.562, 'under': 0.683}
+
+Testing..
+Test, acc avg: 0.6731574534840452 acc: 0.6755663430420712, pre: 0.653032430845805, rec: 0.7491909385113269, f1: 0.6978096377324149, loss: 0.9079891443252563
+{'above': 0.717, 'behind': 0.634, 'in': 0.576, 'to the right of': 0.772, 'to the left of': 0.757, 'on': 0.652, 'under': 0.629, 'next to': 0.623, 'in front of': 0.699}
+
+Epoch #34
+Training..
+[0/84] Loss = 0.02, Forward time = 0.22, Backward time = 0.00, Data loading time = 2.53
+[50/84] Loss = 0.05, Forward time = 11.31, Backward time = 0.06, Data loading time = 19.94
+Train, acc avg: 0.9857938520705076 acc: 0.9854096520763187, pre: 0.9832253107768764, rec: 0.9869881362418675, f1: 0.985098130324167, loss: 0.05621465364293683, lr: 7.408768370508576e-05
+{'next to': 0.992, 'behind': 0.987, 'to the right of': 0.998, 'under': 0.985, 'on': 0.974, 'to the left of': 0.987, 'above': 0.989, 'in front of': 0.976, 'in': 0.983}
+
+Validating..
+Valid, acc avg: 0.6667546897391071 acc: 0.6608910891089109, pre: 0.6425438455582491, rec: 0.7252475247524752, f1: 0.681390359230587, loss: 0.9287298917770386
+{'above': 0.615, 'on': 0.693, 'behind': 0.598, 'in': 0.568, 'in front of': 0.622, 'to the right of': 0.75, 'to the left of': 0.87, 'next to': 0.613, 'under': 0.673}
+
+Testing..
+Test, acc avg: 0.6684758415908743 acc: 0.6666666666666666, pre: 0.6450704134497125, rec: 0.7411003236245954, f1: 0.6897540549831005, loss: 0.919487476348877
+{'above': 0.745, 'behind': 0.62, 'in': 0.62, 'to the right of': 0.772, 'to the left of': 0.75, 'on': 0.618, 'under': 0.6, 'next to': 0.605, 'in front of': 0.687}
+
+Epoch #35
+Training..
+[0/84] Loss = 0.04, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.74
+[50/84] Loss = 0.06, Forward time = 11.34, Backward time = 0.07, Data loading time = 17.25
+Train, acc avg: 0.9842599076402756 acc: 0.9844743733632623, pre: 0.9846743257292171, rec: 0.9835438193647149, f1: 0.984103747903544, loss: 0.05292165307106361, lr: 7.269952498697734e-05
+{'to the right of': 0.998, 'under': 0.982, 'to the left of': 0.994, 'behind': 0.986, 'on': 0.974, 'in front of': 0.979, 'next to': 0.99, 'above': 0.989, 'in': 0.967}
+
+Validating..
+Valid, acc avg: 0.6755522124593941 acc: 0.6670792079207921, pre: 0.655172398731669, rec: 0.7054455445544554, f1: 0.6793752133063728, loss: 0.9441863298416138
+{'above': 0.615, 'on': 0.67, 'behind': 0.671, 'in': 0.554, 'in front of': 0.659, 'to the right of': 0.783, 'to the left of': 0.815, 'next to': 0.65, 'under': 0.663}
+
+Testing..
+Test, acc avg: 0.6533095688415504 acc: 0.6488673139158576, pre: 0.6360946651465287, rec: 0.6957928802588996, f1: 0.6646008782077895, loss: 0.9445880055427551
+{'above': 0.736, 'behind': 0.606, 'in': 0.652, 'to the right of': 0.765, 'to the left of': 0.713, 'on': 0.618, 'under': 0.55, 'next to': 0.614, 'in front of': 0.627}
+
+Epoch #36
+Training..
+[0/84] Loss = 0.03, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.70
+[50/84] Loss = 0.05, Forward time = 11.40, Backward time = 0.06, Data loading time = 15.55
+Train, acc avg: 0.9827032287154059 acc: 0.9842873176206509, pre: 0.9820815822261472, rec: 0.98584003061615, f1: 0.9839522174157664, loss: 0.05593156377740559, lr: 7.128896457825364e-05
+{'under': 0.983, 'on': 0.976, 'in': 0.963, 'in front of': 0.983, 'behind': 0.987, 'to the right of': 0.989, 'next to': 0.995, 'to the left of': 0.987, 'above': 0.981}
+
+Validating..
+Valid, acc avg: 0.6808559396804654 acc: 0.6745049504950495, pre: 0.6577181060913175, rec: 0.7277227722772277, f1: 0.690946826069107, loss: 0.9156118631362915
+{'above': 0.635, 'on': 0.67, 'behind': 0.671, 'in': 0.581, 'in front of': 0.671, 'to the right of': 0.717, 'to the left of': 0.852, 'next to': 0.6, 'under': 0.731}
+
+Testing..
+Test, acc avg: 0.6695938781513303 acc: 0.6682847896440129, pre: 0.6477272635266014, rec: 0.7378640776699029, f1: 0.6898588586396667, loss: 0.9164910912513733
+{'above': 0.726, 'behind': 0.627, 'in': 0.674, 'to the right of': 0.75, 'to the left of': 0.721, 'on': 0.647, 'under': 0.607, 'next to': 0.588, 'in front of': 0.687}
+
+Epoch #37
+Training..
+[0/84] Loss = 0.02, Forward time = 0.23, Backward time = 0.00, Data loading time = 1.73
+[50/84] Loss = 0.05, Forward time = 11.37, Backward time = 0.07, Data loading time = 17.28
+Train, acc avg: 0.9829843283093196 acc: 0.9833520389075945, pre: 0.9809451182128616, rec: 0.9850746268656716, f1: 0.9830005356919335, loss: 0.05235514988280123, lr: 6.985739453173903e-05
+{'to the left of': 0.996, 'under': 0.979, 'on': 0.967, 'next to': 0.996, 'behind': 0.98, 'above': 0.981, 'to the right of': 0.992, 'in': 0.971, 'in front of': 0.985}
+
+Validating..
+Valid, acc avg: 0.6810372787506933 acc: 0.6720297029702971, pre: 0.6590388865208493, rec: 0.7128712871287128, f1: 0.6848939294364483, loss: 0.8904393315315247
+{'above': 0.635, 'on': 0.659, 'behind': 0.671, 'in': 0.608, 'in front of': 0.671, 'to the right of': 0.75, 'to the left of': 0.833, 'next to': 0.6, 'under': 0.702}
+
+Testing..
+Test, acc avg: 0.6619269391739415 acc: 0.6601941747572816, pre: 0.6430635745222028, rec: 0.7200647249190939, f1: 0.6793843237822695, loss: 0.908791184425354
+{'above': 0.736, 'behind': 0.613, 'in': 0.587, 'to the right of': 0.765, 'to the left of': 0.721, 'on': 0.613, 'under': 0.6, 'next to': 0.649, 'in front of': 0.675}
+
+Epoch #38
+Training..
+[0/84] Loss = 0.04, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.55
+[50/84] Loss = 0.05, Forward time = 11.31, Backward time = 0.06, Data loading time = 15.79
+Train, acc avg: 0.9868920146631053 acc: 0.9863449307893752, pre: 0.9851031283991476, rec: 0.9869881362418675, f1: 0.9860397314655082, loss: 0.048929715307340735, lr: 6.840622763423391e-05
+{'in front of': 0.983, 'under': 0.98, 'above': 1.0, 'next to': 0.995, 'behind': 0.99, 'to the left of': 0.992, 'to the right of': 0.996, 'on': 0.976, 'in': 0.971}
+
+Validating..
+Valid, acc avg: 0.6967900269221408 acc: 0.6868811881188119, pre: 0.672768863323367, rec: 0.7277227722772277, f1: 0.6991626569711549, loss: 0.9002552628517151
+{'above': 0.635, 'on': 0.676, 'behind': 0.744, 'in': 0.581, 'in front of': 0.634, 'to the right of': 0.75, 'to the left of': 0.889, 'next to': 0.65, 'under': 0.712}
+
+Testing..
+Test, acc avg: 0.6565078291766927 acc: 0.6529126213592233, pre: 0.6367583120584904, rec: 0.7119741100323624, f1: 0.6722639180144575, loss: 0.9571018218994141
+{'above': 0.726, 'behind': 0.599, 'in': 0.598, 'to the right of': 0.787, 'to the left of': 0.728, 'on': 0.578, 'under': 0.607, 'next to': 0.623, 'in front of': 0.663}
+Accuracy has improved
+Checkpoint saved to ./results/spatialsenseplus_RegionViT_seed0/model_best.pth
+
+Epoch #39
+Training..
+[0/84] Loss = 0.14, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.83
+[50/84] Loss = 0.04, Forward time = 11.31, Backward time = 0.06, Data loading time = 16.75
+Train, acc avg: 0.987012173511922 acc: 0.9884025439580996, pre: 0.9892596816675884, rec: 0.9869881362418675, f1: 0.9881176035029354, loss: 0.04648206805411194, lr: 6.693689601226458e-05
+{'to the left of': 0.989, 'on': 0.973, 'under': 0.99, 'above': 0.985, 'next to': 0.997, 'in front of': 0.985, 'to the right of': 0.996, 'behind': 0.993, 'in': 0.975}
+
+Validating..
+Valid, acc avg: 0.682227202162839 acc: 0.6745049504950495, pre: 0.6613272159879356, rec: 0.7153465346534653, f1: 0.6872720506922306, loss: 0.9005865454673767
+{'above': 0.656, 'on': 0.676, 'behind': 0.646, 'in': 0.581, 'in front of': 0.695, 'to the right of': 0.717, 'to the left of': 0.87, 'next to': 0.625, 'under': 0.673}
+
+Testing..
+Test, acc avg: 0.6624734064005628 acc: 0.6610032362459547, pre: 0.643994201968246, rec: 0.7200647249190939, f1: 0.6799033373598069, loss: 0.9480032920837402
+{'above': 0.755, 'behind': 0.641, 'in': 0.609, 'to the right of': 0.757, 'to the left of': 0.721, 'on': 0.623, 'under': 0.607, 'next to': 0.588, 'in front of': 0.663}
+
+Epoch #40
+Training..
+[0/84] Loss = 0.01, Forward time = 0.22, Backward time = 0.00, Data loading time = 1.87
+[50/84] Loss = 0.04, Forward time = 11.31, Backward time = 0.07, Data loading time = 16.84

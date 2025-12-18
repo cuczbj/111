@@ -1,0 +1,4 @@
+Could not find conda environment: srp
+You can list all discoverable environments with `conda info --envs`.
+
+/var/spool/slurm/d/job557711/slurm_script: line 14: seu_share/home/huangjie/220235144/anaconda3/envs/Reefknot/bin/python: No such file or directory
