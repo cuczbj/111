@@ -74,26 +74,44 @@ class SpatialSenseDataset(Dataset):
                     self.annot_idx_each_predicate[annot['predicate']].append(idx)
                     idx += 1
 
-        # Inpainting配置
-        self.use_inpainting = True  # 默认启用inpainting
+        # AI扩图配置
+        self.use_ai_outpaint = True  # 是否使用AI扩图（默认启用）
+        self.ai_outpaint_method = "tencent"  # "tencent" | "api" | "local"
         
-        # 保存inpainting图像的配置
-        self.save_inpaint_samples = True  # 是否保存inpainting样本
+        # 腾讯云AI扩图配置（需已在环境中配置 TENCENTCLOUD_SECRET_ID / TENCENTCLOUD_SECRET_KEY）
+        self.ai_outpaint_region = "ap-guangzhou"
+        self.ai_outpaint_ratio = None  # 若为None则按图像长宽自动选 4:3 或 3:4
+        self.ai_outpaint_timeout = 30  # 秒
+        
+        # 其他自定义API配置（如自行实现 call_ai_outpaint_api 时可用）
+        self.ai_outpaint_api_url = None
+        self.ai_outpaint_api_key = None
+        
+        # 保存扩图图像的配置
+        self.save_outpaint_samples = True  # 是否保存扩图样本
         self.max_save_samples = 10  # 最多保存的样本数
         self.saved_samples_count = 0  # 已保存的样本计数
-        self.save_dir = "./inpaint_samples"  # 保存目录
-        if self.save_inpaint_samples:
+        self.save_dir = "./outpaint_samples"  # 保存目录
+        if self.save_outpaint_samples:
             os.makedirs(self.save_dir, exist_ok=True)
         
         print(f"{'='*70}")
         print(f"数据集初始化 - {split}")
         print(f"  总样本数: {self.total_samples}")
         print(f"  重合阈值: IoU > {self.overlap_threshold}")
-        print(f"  Subject居中: 启用")
+        print(f"  Subject居中: 启用（仅宽度方向）")
         print(f"  Object涂红: 启用")
-        print(f"  Inpainting补全: {'启用' if self.use_inpainting else '禁用'}")
-        if self.save_inpaint_samples:
-            print(f"  保存inpainting样本: 启用 (最多{self.max_save_samples}张，保存到 {self.save_dir})")
+        print(f"  AI扩图补全: {'启用' if self.use_ai_outpaint else '禁用'}")
+        if self.use_ai_outpaint:
+            print(f"    方法: {self.ai_outpaint_method}")
+            if self.ai_outpaint_method == 'tencent':
+                print(f"    Region: {self.ai_outpaint_region}")
+            if self.ai_outpaint_api_url:
+                print(f"    API地址: {self.ai_outpaint_api_url}")
+            else:
+                print(f"    ⚠️  未配置自定义API，将使用腾讯云或OpenCV后备")
+        if self.save_outpaint_samples:
+            print(f"  保存扩图样本: 启用 (最多{self.max_save_samples}张，保存到 {self.save_dir})")
         print(f"{'='*70}\n")
 
     def __len__(self):
@@ -126,15 +144,16 @@ class SpatialSenseDataset(Dataset):
         iou = intersection / (union + 1e-8)
         return iou
 
-    def center_subject_and_translate(self, img, bbox_s, bbox_o, use_inpainting=True):
+    def center_subject_and_translate(self, img, bbox_s, bbox_o, use_ai_outpaint=True):
         """
-        将subject移动到图像中心，并相应平移object
+        将subject在宽度方向上移动到图像中心，并相应平移object
+        只进行水平方向的平移，不改变垂直位置
         
         Args:
             img: numpy array (H, W, 3)
             bbox_s: subject bbox [y0, y1, x0, x1]
             bbox_o: object bbox [y0, y1, x0, x1]
-            use_inpainting: 是否使用inpainting补全缺失区域
+            use_ai_outpaint: 是否使用AI扩图补全缺失区域
             
         Returns:
             centered_img: 居中后的图像
@@ -144,30 +163,29 @@ class SpatialSenseDataset(Dataset):
         """
         ih, iw = img.shape[:2]
         
-        # 1. 计算subject的中心点
+        # 1. 计算subject的中心点（只计算x方向）
         ys0, ys1, xs0, xs1 = bbox_s
-        subject_center_y = (ys0 + ys1) / 2.0
         subject_center_x = (xs0 + xs1) / 2.0
         
-        # 2. 计算需要的平移量（使subject中心对齐到图像中心）
-        image_center_y = ih / 2.0
+        # 2. 计算需要的平移量（使subject中心对齐到图像宽度中心）
         image_center_x = iw / 2.0
         
-        shift_y = image_center_y - subject_center_y
+        # 只进行x方向的平移，y方向不变
         shift_x = image_center_x - subject_center_x
+        shift_y = 0  # y方向不移动
         
-        # 3. 应用平移到bbox
+        # 3. 应用平移到bbox（只改变x坐标）
         new_bbox_s = [
-            ys0 + shift_y,
-            ys1 + shift_y,
+            ys0,  # y坐标不变
+            ys1,  # y坐标不变
             xs0 + shift_x,
             xs1 + shift_x
         ]
         
         yo0, yo1, xo0, xo1 = bbox_o
         new_bbox_o = [
-            yo0 + shift_y,
-            yo1 + shift_y,
+            yo0,  # y坐标不变
+            yo1,  # y坐标不变
             xo0 + shift_x,
             xo1 + shift_x
         ]
@@ -176,17 +194,17 @@ class SpatialSenseDataset(Dataset):
         iou = self.compute_iou(new_bbox_s, new_bbox_o)
         is_valid = (iou <= self.overlap_threshold)
         
-        # 5. 应用平移到图像
-        # 使用仿射变换矩阵
-        M = np.float32([[1, 0, shift_x], [0, 1, shift_y]])
+        # 5. 应用平移到图像（只进行x方向的平移）
+        # 使用仿射变换矩阵，只平移x方向
+        M = np.float32([[1, 0, shift_x], [0, 1, 0]])  # shift_y = 0
         centered_img_before_inpaint = cv2.warpAffine(img, M, (iw, ih), 
                                                      borderMode=cv2.BORDER_CONSTANT, 
                                                      borderValue=(0, 0, 0))
         
-        # 6. 使用inpainting补全黑色边界区域
+        # 6. 使用AI扩图补全黑色边界区域
         centered_img = centered_img_before_inpaint.copy()
-        if use_inpainting:
-            centered_img = self.inpaint_missing_regions(centered_img, new_bbox_s, new_bbox_o)
+        if use_ai_outpaint:
+            centered_img = self.ai_outpaint_image(centered_img, new_bbox_s, new_bbox_o)
         
         # 7. 裁剪bbox到图像范围内
         new_bbox_s = [
@@ -215,9 +233,9 @@ class SpatialSenseDataset(Dataset):
         
         return centered_img, new_bbox_s, new_bbox_o, is_valid, iou, centered_img_before_inpaint
 
-    def inpaint_missing_regions(self, img, bbox_s, bbox_o):
+    def ai_outpaint_image(self, img, bbox_s, bbox_o):
         """
-        使用OpenCV inpainting补全图像中的黑色边界区域
+        使用AI扩图补全图像中的黑色边界区域
         
         Args:
             img: numpy array (H, W, 3)，可能包含黑色边界
@@ -225,42 +243,158 @@ class SpatialSenseDataset(Dataset):
             bbox_o: object bbox [y0, y1, x0, x1]，需要保护的区域
             
         Returns:
-            inpainted_img: 补全后的图像
+            outpainted_img: 扩图后的图像
         """
         ih, iw = img.shape[:2]
         
-        # 创建mask：标记需要inpaint的区域（黑色像素，但不包括subject和object区域）
-        # 将图像转换为uint8格式用于处理
+        # 检测黑色区域（需要扩图的区域）
         img_uint8 = img.astype(np.uint8)
-        
-        # 检测黑色区域（RGB值接近(0,0,0)的区域）
-        # 使用阈值来识别黑色像素
         black_threshold = 10
         mask = np.all(img_uint8 < black_threshold, axis=2).astype(np.uint8) * 255
         
-        # 保护subject和object区域，不进行inpainting
+        # 保护subject和object区域
         ys0, ys1, xs0, xs1 = [int(max(0, min(v, ih if i < 2 else iw))) 
                               for i, v in enumerate([bbox_s[0], bbox_s[1], bbox_s[2], bbox_s[3]])]
         yo0, yo1, xo0, xo1 = [int(max(0, min(v, ih if i < 2 else iw))) 
                               for i, v in enumerate([bbox_o[0], bbox_o[1], bbox_o[2], bbox_o[3]])]
         
-        # 在mask中将subject和object区域设为0（不inpaint）
         if ys1 > ys0 and xs1 > xs0:
             mask[ys0:ys1, xs0:xs1] = 0
         if yo1 > yo0 and xo1 > xo0:
             mask[yo0:yo1, xo0:xo1] = 0
         
-        # 如果mask中没有需要inpaint的区域，直接返回原图
+        # 如果没有需要扩图的区域，直接返回原图
         if np.sum(mask) == 0:
             return img
         
-        # 使用OpenCV的inpainting算法
-        # INPAINT_TELEA: 快速算法，适合大多数情况
-        # INPAINT_NS: 更慢但质量更好
-        inpainted_img = cv2.inpaint(img_uint8, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+        # 尝试使用AI扩图：优先腾讯云，其次自定义API
+        if self.use_ai_outpaint:
+            if self.ai_outpaint_method == "tencent":
+                try:
+                    result = self.call_tencent_outpaint_api(img_uint8, mask, bbox_s, bbox_o)
+                    if result is not None:
+                        return result.astype(np.float32)
+                except Exception as e:
+                    print(f"腾讯云AI扩图失败，回退到OpenCV: {e}")
+            elif self.ai_outpaint_method == "api" and self.ai_outpaint_api_url:
+                try:
+                    result = self.call_ai_outpaint_api(img_uint8, mask, bbox_s, bbox_o)
+                    if result is not None:
+                        return result.astype(np.float32)
+                except Exception as e:
+                    print(f\"自定义AI扩图API失败，回退到OpenCV: {e}\")
         
-        # 转换回float32格式
-        return inpainted_img.astype(np.float32)
+        # 后备方案：使用OpenCV inpainting
+        return self.opencv_inpaint_fallback(img_uint8, mask).astype(np.float32)
+    
+    def call_tencent_outpaint_api(self, img, mask, bbox_s, bbox_o):
+        """
+        调用腾讯云 ImageOutpainting 接口
+        依赖环境变量：TENCENTCLOUD_SECRET_ID, TENCENTCLOUD_SECRET_KEY
+        """
+        import base64
+        import os
+        from tencentcloud.common import credential
+        from tencentcloud.aiart.v20221229 import aiart_client, models
+
+        # 读取凭证
+        secret_id = os.getenv("TENCENTCLOUD_SECRET_ID")
+        secret_key = os.getenv("TENCENTCLOUD_SECRET_KEY")
+        if not secret_id or not secret_key:
+            raise RuntimeError("缺少腾讯云凭证，请设置 TENCENTCLOUD_SECRET_ID / TENCENTCLOUD_SECRET_KEY")
+
+        # 编码图片为base64
+        img_b64 = base64.b64encode(img).decode("utf-8")
+
+        # 选择比例：如未指定，根据宽高选择 4:3 / 3:4
+        h, w, _ = img.shape
+        ratio = self.ai_outpaint_ratio
+        if ratio is None:
+            ratio = "4:3" if w >= h else "3:4"
+
+        cred = credential.Credential(secret_id, secret_key)
+        client = aiart_client.AiartClient(cred, self.ai_outpaint_region)
+        req = models.ImageOutpaintingRequest()
+        req.Ratio = ratio
+        req.InputImage = img_b64
+        req.RspImgType = "base64"
+
+        resp = client.ImageOutpainting(req)
+        if not hasattr(resp, "ResultImage") or resp.ResultImage is None:
+            return None
+
+        result_bytes = base64.b64decode(resp.ResultImage)
+        result_arr = np.asarray(bytearray(result_bytes), dtype=np.uint8)
+        result_img = cv2.imdecode(result_arr, cv2.IMREAD_COLOR)
+        return result_img[:, :, ::-1]  # 转为RGB
+
+    def call_ai_outpaint_api(self, img, mask, bbox_s, bbox_o):
+        """
+        调用AI扩图API
+        
+        这个方法需要用户根据自己使用的API进行实现。
+        常见的AI扩图API包括：
+        - Stable Diffusion API
+        - DALL-E API  
+        - 其他图像生成服务的API
+        
+        Args:
+            img: numpy array (H, W, 3), uint8格式
+            mask: numpy array (H, W), uint8格式，255表示需要扩图的区域
+            bbox_s: subject bbox
+            bbox_o: object bbox
+            
+        Returns:
+            outpainted_img: numpy array (H, W, 3), uint8格式，扩图后的图像
+            如果API调用失败，返回None
+        """
+        # TODO: 用户需要在这里实现自己的API调用逻辑
+        # 示例代码结构：
+        #
+        # import requests
+        # import base64
+        # 
+        # # 将图像和mask转换为base64
+        # img_pil = Image.fromarray(img)
+        # mask_pil = Image.fromarray(mask)
+        # 
+        # # 准备API请求
+        # files = {
+        #     'image': ('image.jpg', img_pil, 'image/jpeg'),
+        #     'mask': ('mask.jpg', mask_pil, 'image/jpeg')
+        # }
+        # headers = {'Authorization': f'Bearer {self.ai_outpaint_api_key}'}
+        # 
+        # # 调用API
+        # response = requests.post(
+        #     self.ai_outpaint_api_url,
+        #     files=files,
+        #     headers=headers,
+        #     timeout=self.ai_outpaint_timeout
+        # )
+        # 
+        # if response.status_code == 200:
+        #     result_img = Image.open(io.BytesIO(response.content))
+        #     return np.array(result_img)
+        # else:
+        #     return None
+        
+        # 当前返回None，表示未实现，将使用OpenCV后备方案
+        return None
+    
+    def opencv_inpaint_fallback(self, img_uint8, mask):
+        """
+        OpenCV inpainting后备方案
+        
+        Args:
+            img_uint8: numpy array (H, W, 3), uint8格式
+            mask: numpy array (H, W), uint8格式
+            
+        Returns:
+            inpainted_img: numpy array (H, W, 3), uint8格式
+        """
+        inpainted_img = cv2.inpaint(img_uint8, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+        return inpainted_img
     
     def paint_object_red(self, img, bbox_o):
         """
@@ -290,36 +424,36 @@ class SpatialSenseDataset(Dataset):
         
         return img
     
-    def save_inpaint_sample(self, idx, original_img, before_inpaint_img, after_inpaint_img, 
-                           bbox_s, bbox_o, annot):
+    def save_outpaint_sample(self, idx, original_img, before_outpaint_img, after_outpaint_img, 
+                            bbox_s, bbox_o, annot):
         """
-        保存inpainting样本的对比图像
+        保存AI扩图样本的对比图像
         
         Args:
             idx: 样本索引
             original_img: 原始图像
-            before_inpaint_img: inpainting前的图像（居中后）
-            after_inpaint_img: inpainting后的图像
+            before_outpaint_img: 扩图前的图像（居中后）
+            after_outpaint_img: 扩图后的图像
             bbox_s: subject bbox
             bbox_o: object bbox
             annot: 标注信息
         """
         try:
             # 将object区域涂红（用于最终图像）
-            final_img = self.paint_object_red(after_inpaint_img.copy(), bbox_o)
+            final_img = self.paint_object_red(after_outpaint_img.copy(), bbox_o)
             
             # 调整图像大小以便显示（统一缩放到224x224）
             target_size = 224
             original_resized = cv2.resize(original_img.astype(np.uint8), (target_size, target_size))
-            before_inpaint_resized = cv2.resize(before_inpaint_img.astype(np.uint8), (target_size, target_size))
-            after_inpaint_resized = cv2.resize(after_inpaint_img.astype(np.uint8), (target_size, target_size))
+            before_outpaint_resized = cv2.resize(before_outpaint_img.astype(np.uint8), (target_size, target_size))
+            after_outpaint_resized = cv2.resize(after_outpaint_img.astype(np.uint8), (target_size, target_size))
             final_resized = cv2.resize(final_img.astype(np.uint8), (target_size, target_size))
             
             # 创建对比图像（2x2布局）
             comparison = np.zeros((target_size * 2, target_size * 2, 3), dtype=np.uint8)
             comparison[0:target_size, 0:target_size] = original_resized
-            comparison[0:target_size, target_size:target_size*2] = before_inpaint_resized
-            comparison[target_size:target_size*2, 0:target_size] = after_inpaint_resized
+            comparison[0:target_size, target_size:target_size*2] = before_outpaint_resized
+            comparison[target_size:target_size*2, 0:target_size] = after_outpaint_resized
             comparison[target_size:target_size*2, target_size:target_size*2] = final_resized
             
             # 添加文字标签
@@ -336,8 +470,8 @@ class SpatialSenseDataset(Dataset):
             
             labels = [
                 ("原始图像", (10, 10)),
-                ("居中后(inpaint前)", (target_size + 10, 10)),
-                ("Inpainting后", (10, target_size + 10)),
+                ("居中后(扩图前)", (target_size + 10, 10)),
+                ("AI扩图后", (10, target_size + 10)),
                 ("最终(涂红后)", (target_size + 10, target_size + 10))
             ]
             
@@ -401,12 +535,12 @@ class SpatialSenseDataset(Dataset):
             draw.text((target_size + 10, target_size + 30), info_text, fill=(255, 255, 255), font=font)
             
             # 保存图像
-            filename = os.path.join(self.save_dir, f"inpaint_sample_{idx:04d}.jpg")
+            filename = os.path.join(self.save_dir, f"outpaint_sample_{idx:04d}.jpg")
             comparison_pil.save(filename)
-            print(f"保存inpainting样本: {filename}")
+            print(f"保存AI扩图样本: {filename}")
             
         except Exception as e:
-            print(f"保存inpainting样本失败 (idx={idx}): {e}")
+            print(f"保存AI扩图样本失败 (idx={idx}): {e}")
     
     def __getitem__(self, idx, visualize=False):
         annot = self.annotations[idx]
@@ -418,7 +552,7 @@ class SpatialSenseDataset(Dataset):
         # ===== 应用subject居中和平移 =====
         centered_img, new_bbox_s, new_bbox_o, is_valid, iou, centered_img_before_inpaint = self.center_subject_and_translate(
             img, annot["subject"]["bbox"], annot["object"]["bbox"], 
-            use_inpainting=self.use_inpainting
+            use_ai_outpaint=self.use_ai_outpaint
         )
         
         # ===== 如果重合，跳过此样本 =====
@@ -427,9 +561,9 @@ class SpatialSenseDataset(Dataset):
             # 返回None，需要在DataLoader中处理
             return None
         
-        # ===== 保存inpainting样本（仅保存前几张） =====
-        if self.save_inpaint_samples and self.saved_samples_count < self.max_save_samples:
-            self.save_inpaint_sample(
+        # ===== 保存扩图样本（仅保存前几张） =====
+        if self.save_outpaint_samples and self.saved_samples_count < self.max_save_samples:
+            self.save_outpaint_sample(
                 idx, img, centered_img_before_inpaint, centered_img, 
                 new_bbox_s, new_bbox_o, annot
             )
