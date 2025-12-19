@@ -1,6 +1,5 @@
 import torch
 from torch.utils.data import Dataset
-import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
 import json
 import random
@@ -75,12 +74,16 @@ class SpatialSenseDataset(Dataset):
                     self.annot_idx_each_predicate[annot['predicate']].append(idx)
                     idx += 1
 
+        # Inpainting配置
+        self.use_inpainting = True  # 默认启用inpainting
+        
         print(f"{'='*70}")
         print(f"数据集初始化 - {split}")
         print(f"  总样本数: {self.total_samples}")
         print(f"  重合阈值: IoU > {self.overlap_threshold}")
         print(f"  Subject居中: 启用")
         print(f"  Object涂红: 启用")
+        print(f"  Inpainting补全: {'启用' if self.use_inpainting else '禁用'}")
         print(f"{'='*70}\n")
 
     def __len__(self):
@@ -113,7 +116,7 @@ class SpatialSenseDataset(Dataset):
         iou = intersection / (union + 1e-8)
         return iou
 
-    def center_subject_and_translate(self, img, bbox_s, bbox_o):
+    def center_subject_and_translate(self, img, bbox_s, bbox_o, use_inpainting=True):
         """
         将subject移动到图像中心，并相应平移object
         
@@ -121,6 +124,7 @@ class SpatialSenseDataset(Dataset):
             img: numpy array (H, W, 3)
             bbox_s: subject bbox [y0, y1, x0, x1]
             bbox_o: object bbox [y0, y1, x0, x1]
+            use_inpainting: 是否使用inpainting补全缺失区域
             
         Returns:
             centered_img: 居中后的图像
@@ -169,7 +173,11 @@ class SpatialSenseDataset(Dataset):
                                       borderMode=cv2.BORDER_CONSTANT, 
                                       borderValue=(0, 0, 0))
         
-        # 6. 裁剪bbox到图像范围内
+        # 6. 使用inpainting补全黑色边界区域
+        if use_inpainting:
+            centered_img = self.inpaint_missing_regions(centered_img, new_bbox_s, new_bbox_o)
+        
+        # 7. 裁剪bbox到图像范围内
         new_bbox_s = [
             max(0, new_bbox_s[0]),
             min(ih, new_bbox_s[1]),
@@ -186,6 +194,53 @@ class SpatialSenseDataset(Dataset):
         
         return centered_img, new_bbox_s, new_bbox_o, is_valid, iou
 
+    def inpaint_missing_regions(self, img, bbox_s, bbox_o):
+        """
+        使用OpenCV inpainting补全图像中的黑色边界区域
+        
+        Args:
+            img: numpy array (H, W, 3)，可能包含黑色边界
+            bbox_s: subject bbox [y0, y1, x0, x1]，需要保护的区域
+            bbox_o: object bbox [y0, y1, x0, x1]，需要保护的区域
+            
+        Returns:
+            inpainted_img: 补全后的图像
+        """
+        ih, iw = img.shape[:2]
+        
+        # 创建mask：标记需要inpaint的区域（黑色像素，但不包括subject和object区域）
+        # 将图像转换为uint8格式用于处理
+        img_uint8 = img.astype(np.uint8)
+        
+        # 检测黑色区域（RGB值接近(0,0,0)的区域）
+        # 使用阈值来识别黑色像素
+        black_threshold = 10
+        mask = np.all(img_uint8 < black_threshold, axis=2).astype(np.uint8) * 255
+        
+        # 保护subject和object区域，不进行inpainting
+        ys0, ys1, xs0, xs1 = [int(max(0, min(v, ih if i < 2 else iw))) 
+                              for i, v in enumerate([bbox_s[0], bbox_s[1], bbox_s[2], bbox_s[3]])]
+        yo0, yo1, xo0, xo1 = [int(max(0, min(v, ih if i < 2 else iw))) 
+                              for i, v in enumerate([bbox_o[0], bbox_o[1], bbox_o[2], bbox_o[3]])]
+        
+        # 在mask中将subject和object区域设为0（不inpaint）
+        if ys1 > ys0 and xs1 > xs0:
+            mask[ys0:ys1, xs0:xs1] = 0
+        if yo1 > yo0 and xo1 > xo0:
+            mask[yo0:yo1, xo0:xo1] = 0
+        
+        # 如果mask中没有需要inpaint的区域，直接返回原图
+        if np.sum(mask) == 0:
+            return img
+        
+        # 使用OpenCV的inpainting算法
+        # INPAINT_TELEA: 快速算法，适合大多数情况
+        # INPAINT_NS: 更慢但质量更好
+        inpainted_img = cv2.inpaint(img_uint8, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+        
+        # 转换回float32格式
+        return inpainted_img.astype(np.float32)
+    
     def paint_object_red(self, img, bbox_o):
         """
         将object区域涂成红色
@@ -223,7 +278,8 @@ class SpatialSenseDataset(Dataset):
         
         # ===== 应用subject居中和平移 =====
         centered_img, new_bbox_s, new_bbox_o, is_valid, iou = self.center_subject_and_translate(
-            img, annot["subject"]["bbox"], annot["object"]["bbox"]
+            img, annot["subject"]["bbox"], annot["object"]["bbox"], 
+            use_inpainting=self.use_inpainting
         )
         
         # ===== 如果重合，跳过此样本 =====
@@ -421,19 +477,6 @@ class SpatialSenseDataset(Dataset):
             max(0, int(bbox[2] - (factor - 1.0) * width / 2.0)),
             min(iw, int(bbox[3] + (factor - 1.0) * width / 2.0)),
         ]
-
-    @staticmethod
-    def _getAppr(im, bb, out_size=224.0):
-        subim = im[bb[0] : bb[1], bb[2] : bb[3], :]
-        subim = cv2.resize(
-            subim,
-            None,
-            None,
-            out_size / subim.shape[1],
-            out_size / subim.shape[0],
-            interpolation=cv2.INTER_LINEAR,
-        )
-        return subim.astype(np.uint8, copy=False)
 
     @staticmethod
     def _getUnionBBox(aBB, bBB, ih, iw, margin=10):

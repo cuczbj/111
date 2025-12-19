@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader, DistributedSampler
 
 from .rel3d import Rel3dDataset
-from .spatial_sense import SpatialSenseDataset
+from .spatial_sense import SpatialSenseDataset, collate_fn_filter_none
 import utils
 
 
@@ -39,6 +39,9 @@ def create_dataloader(split, dataset_name, predicate_dim, object_dim, datapath, 
         dataset = SpatialSenseDataset(**dataset_args)
     else:
         raise ValueError
+    # 为spatialsense数据集使用collate_fn_filter_none来过滤None样本
+    collate_fn = collate_fn_filter_none if dataset_name == "spatialsense" else None
+    
     if utils.is_dist_avail_and_initialized():
         world_size = utils.get_world_size()
         assert batch_size % world_size == 0, "the batch_size should be divisible by world_size"
@@ -48,16 +51,19 @@ def create_dataloader(split, dataset_name, predicate_dim, object_dim, datapath, 
                 # drop_last=(split == "train"),
             )
             dataloader = DataLoader(dataset, batch_size=batch_size // world_size, sampler=sampler,
-                                    num_workers=num_workers, pin_memory=torch.cuda.is_available())
+                                    num_workers=num_workers, pin_memory=torch.cuda.is_available(),
+                                    collate_fn=collate_fn)
         else:
             dataloader = DataLoader(dataset, batch_size=batch_size // world_size, num_workers=num_workers,
                                     shuffle=shuffle or (split == "train"),
                                     # drop_last=(split == "train"),
-                                    pin_memory=torch.cuda.is_available())
+                                    pin_memory=torch.cuda.is_available(),
+                                    collate_fn=collate_fn)
     else:
         dataloader = DataLoader(dataset, batch_size, num_workers=num_workers,
                                 shuffle=shuffle or (split == "train"),
                                 # drop_last=(split == "train"),
-                                pin_memory=torch.cuda.is_available())
+                                pin_memory=torch.cuda.is_available(),
+                                collate_fn=collate_fn)
 
     return dataloader, dataset.predicates, dataset.objects
