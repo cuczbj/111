@@ -77,6 +77,14 @@ class SpatialSenseDataset(Dataset):
         # Inpainting配置
         self.use_inpainting = True  # 默认启用inpainting
         
+        # 保存inpainting图像的配置
+        self.save_inpaint_samples = True  # 是否保存inpainting样本
+        self.max_save_samples = 10  # 最多保存的样本数
+        self.saved_samples_count = 0  # 已保存的样本计数
+        self.save_dir = "./inpaint_samples"  # 保存目录
+        if self.save_inpaint_samples:
+            os.makedirs(self.save_dir, exist_ok=True)
+        
         print(f"{'='*70}")
         print(f"数据集初始化 - {split}")
         print(f"  总样本数: {self.total_samples}")
@@ -84,6 +92,8 @@ class SpatialSenseDataset(Dataset):
         print(f"  Subject居中: 启用")
         print(f"  Object涂红: 启用")
         print(f"  Inpainting补全: {'启用' if self.use_inpainting else '禁用'}")
+        if self.save_inpaint_samples:
+            print(f"  保存inpainting样本: 启用 (最多{self.max_save_samples}张，保存到 {self.save_dir})")
         print(f"{'='*70}\n")
 
     def __len__(self):
@@ -169,11 +179,12 @@ class SpatialSenseDataset(Dataset):
         # 5. 应用平移到图像
         # 使用仿射变换矩阵
         M = np.float32([[1, 0, shift_x], [0, 1, shift_y]])
-        centered_img = cv2.warpAffine(img, M, (iw, ih), 
-                                      borderMode=cv2.BORDER_CONSTANT, 
-                                      borderValue=(0, 0, 0))
+        centered_img_before_inpaint = cv2.warpAffine(img, M, (iw, ih), 
+                                                     borderMode=cv2.BORDER_CONSTANT, 
+                                                     borderValue=(0, 0, 0))
         
         # 6. 使用inpainting补全黑色边界区域
+        centered_img = centered_img_before_inpaint.copy()
         if use_inpainting:
             centered_img = self.inpaint_missing_regions(centered_img, new_bbox_s, new_bbox_o)
         
@@ -202,7 +213,7 @@ class SpatialSenseDataset(Dataset):
             # 如果bbox无效，标记为无效样本
             is_valid = False
         
-        return centered_img, new_bbox_s, new_bbox_o, is_valid, iou
+        return centered_img, new_bbox_s, new_bbox_o, is_valid, iou, centered_img_before_inpaint
 
     def inpaint_missing_regions(self, img, bbox_s, bbox_o):
         """
@@ -278,7 +289,125 @@ class SpatialSenseDataset(Dataset):
             img[yo0:yo1, xo0:xo1, :] = [255.0, 0.0, 0.0]  # RGB格式，红色
         
         return img
-
+    
+    def save_inpaint_sample(self, idx, original_img, before_inpaint_img, after_inpaint_img, 
+                           bbox_s, bbox_o, annot):
+        """
+        保存inpainting样本的对比图像
+        
+        Args:
+            idx: 样本索引
+            original_img: 原始图像
+            before_inpaint_img: inpainting前的图像（居中后）
+            after_inpaint_img: inpainting后的图像
+            bbox_s: subject bbox
+            bbox_o: object bbox
+            annot: 标注信息
+        """
+        try:
+            # 将object区域涂红（用于最终图像）
+            final_img = self.paint_object_red(after_inpaint_img.copy(), bbox_o)
+            
+            # 调整图像大小以便显示（统一缩放到224x224）
+            target_size = 224
+            original_resized = cv2.resize(original_img.astype(np.uint8), (target_size, target_size))
+            before_inpaint_resized = cv2.resize(before_inpaint_img.astype(np.uint8), (target_size, target_size))
+            after_inpaint_resized = cv2.resize(after_inpaint_img.astype(np.uint8), (target_size, target_size))
+            final_resized = cv2.resize(final_img.astype(np.uint8), (target_size, target_size))
+            
+            # 创建对比图像（2x2布局）
+            comparison = np.zeros((target_size * 2, target_size * 2, 3), dtype=np.uint8)
+            comparison[0:target_size, 0:target_size] = original_resized
+            comparison[0:target_size, target_size:target_size*2] = before_inpaint_resized
+            comparison[target_size:target_size*2, 0:target_size] = after_inpaint_resized
+            comparison[target_size:target_size*2, target_size:target_size*2] = final_resized
+            
+            # 添加文字标签
+            comparison_pil = Image.fromarray(comparison)
+            draw = ImageDraw.Draw(comparison_pil)
+            
+            # 添加标题
+            font_size = 16
+            try:
+                from PIL import ImageFont
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+            except:
+                font = None
+            
+            labels = [
+                ("原始图像", (10, 10)),
+                ("居中后(inpaint前)", (target_size + 10, 10)),
+                ("Inpainting后", (10, target_size + 10)),
+                ("最终(涂红后)", (target_size + 10, target_size + 10))
+            ]
+            
+            for label, pos in labels:
+                draw.text(pos, label, fill=(255, 255, 0), font=font)
+            
+            # 添加bbox标注
+            ih, iw = original_img.shape[:2]
+            scale = target_size / max(ih, iw)
+            
+            # 在原始图像上画bbox
+            ys0, ys1, xs0, xs1 = annot["subject"]["bbox"]
+            yo0, yo1, xo0, xo1 = annot["object"]["bbox"]
+            draw.rectangle(
+                (xs0 * scale, ys0 * scale, xs1 * scale, ys1 * scale),
+                outline='blue', width=2
+            )
+            draw.rectangle(
+                (xo0 * scale, yo0 * scale, xo1 * scale, yo1 * scale),
+                outline='red', width=2
+            )
+            
+            # 在最终图像上画bbox（居中后的坐标）
+            # 注意：bbox_s和bbox_o是居中后的坐标，需要按原始图像尺寸缩放
+            ys0, ys1, xs0, xs1 = bbox_s
+            yo0, yo1, xo0, xo1 = bbox_o
+            final_scale = target_size / max(ih, iw)
+            # 最终图像在右下角
+            offset_x = target_size
+            offset_y = target_size
+            draw.rectangle(
+                (offset_x + xs0 * final_scale, offset_y + ys0 * final_scale,
+                 offset_x + xs1 * final_scale, offset_y + ys1 * final_scale),
+                outline='blue', width=2
+            )
+            draw.rectangle(
+                (offset_x + xo0 * final_scale, offset_y + yo0 * final_scale,
+                 offset_x + xo1 * final_scale, offset_y + yo1 * final_scale),
+                outline='red', width=2
+            )
+            
+            # 在inpainting后的图像上也画bbox（左下角）
+            draw.rectangle(
+                (xs0 * final_scale, target_size + ys0 * final_scale,
+                 xs1 * final_scale, target_size + ys1 * final_scale),
+                outline='blue', width=2
+            )
+            draw.rectangle(
+                (xo0 * final_scale, target_size + yo0 * final_scale,
+                 xo1 * final_scale, target_size + yo1 * final_scale),
+                outline='red', width=2
+            )
+            
+            # 添加信息文本
+            info_text = (
+                f"Sample {idx}\n"
+                f"Subject: {annot['subject']['name']}\n"
+                f"Predicate: {annot['predicate']}\n"
+                f"Object: {annot['object']['name']}"
+            )
+            draw.text((target_size + 10, target_size + 30), info_text, fill=(255, 255, 255), font=font)
+            
+            # 保存图像
+            filename = os.path.join(self.save_dir, f"inpaint_sample_{idx:04d}.jpg")
+            comparison_pil.save(filename)
+            print(f"保存inpainting样本: {filename}")
+            
+        except Exception as e:
+            print(f"保存inpainting样本失败 (idx={idx}): {e}")
+    
     def __getitem__(self, idx, visualize=False):
         annot = self.annotations[idx]
 
@@ -287,7 +416,7 @@ class SpatialSenseDataset(Dataset):
         ih, iw = img.shape[:2]
         
         # ===== 应用subject居中和平移 =====
-        centered_img, new_bbox_s, new_bbox_o, is_valid, iou = self.center_subject_and_translate(
+        centered_img, new_bbox_s, new_bbox_o, is_valid, iou, centered_img_before_inpaint = self.center_subject_and_translate(
             img, annot["subject"]["bbox"], annot["object"]["bbox"], 
             use_inpainting=self.use_inpainting
         )
@@ -298,8 +427,16 @@ class SpatialSenseDataset(Dataset):
             # 返回None，需要在DataLoader中处理
             return None
         
+        # ===== 保存inpainting样本（仅保存前几张） =====
+        if self.save_inpaint_samples and self.saved_samples_count < self.max_save_samples:
+            self.save_inpaint_sample(
+                idx, img, centered_img_before_inpaint, centered_img, 
+                new_bbox_s, new_bbox_o, annot
+            )
+            self.saved_samples_count += 1
+        
         # ===== 将object区域涂红 =====
-        centered_img = self.paint_object_red(centered_img, new_bbox_o)
+        centered_img_after_red = self.paint_object_red(centered_img.copy(), new_bbox_o)
         
         # ===== 使用居中后的bbox =====
         bbox_s = new_bbox_s
@@ -362,8 +499,8 @@ class SpatialSenseDataset(Dataset):
         }
 
         if self.load_image:
-            # 使用居中后的图像
-            img = centered_img
+            # 使用居中后的图像（涂红后）
+            img = centered_img_after_red
             
             bbox_mask = np.stack(
                 [
