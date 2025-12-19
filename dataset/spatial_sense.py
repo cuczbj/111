@@ -74,18 +74,12 @@ class SpatialSenseDataset(Dataset):
                     self.annot_idx_each_predicate[annot['predicate']].append(idx)
                     idx += 1
 
-        # AI扩图配置
+        # AI扩图配置（仅使用腾讯云 ImageOutpainting）
         self.use_ai_outpaint = True  # 是否使用AI扩图（默认启用）
-        self.ai_outpaint_method = "tencent"  # "tencent" | "api" | "local"
-        
-        # 腾讯云AI扩图配置（需已在环境中配置 TENCENTCLOUD_SECRET_ID / TENCENTCLOUD_SECRET_KEY）
+        # 需在环境中配置 TENCENTCLOUD_SECRET_ID / TENCENTCLOUD_SECRET_KEY
         self.ai_outpaint_region = "ap-guangzhou"
         self.ai_outpaint_ratio = None  # 若为None则按图像长宽自动选 4:3 或 3:4
         self.ai_outpaint_timeout = 30  # 秒
-        
-        # 其他自定义API配置（如自行实现 call_ai_outpaint_api 时可用）
-        self.ai_outpaint_api_url = None
-        self.ai_outpaint_api_key = None
         
         # 保存扩图图像的配置
         self.save_outpaint_samples = True  # 是否保存扩图样本
@@ -101,15 +95,9 @@ class SpatialSenseDataset(Dataset):
         print(f"  重合阈值: IoU > {self.overlap_threshold}")
         print(f"  Subject居中: 启用（仅宽度方向）")
         print(f"  Object涂红: 启用")
-        print(f"  AI扩图补全: {'启用' if self.use_ai_outpaint else '禁用'}")
+        print(f"  AI扩图补全(腾讯云): {'启用' if self.use_ai_outpaint else '禁用'}")
         if self.use_ai_outpaint:
-            print(f"    方法: {self.ai_outpaint_method}")
-            if self.ai_outpaint_method == 'tencent':
-                print(f"    Region: {self.ai_outpaint_region}")
-            if self.ai_outpaint_api_url:
-                print(f"    API地址: {self.ai_outpaint_api_url}")
-            else:
-                print(f"    ⚠️  未配置自定义API，将使用腾讯云或OpenCV后备")
+            print(f"    Region: {self.ai_outpaint_region}")
         if self.save_outpaint_samples:
             print(f"  保存扩图样本: 启用 (最多{self.max_save_samples}张，保存到 {self.save_dir})")
         print(f"{'='*70}\n")
@@ -267,25 +255,14 @@ class SpatialSenseDataset(Dataset):
         if np.sum(mask) == 0:
             return img
         
-        # 尝试使用AI扩图：优先腾讯云，其次自定义API
-        if self.use_ai_outpaint:
-            if self.ai_outpaint_method == "tencent":
-                try:
-                    result = self.call_tencent_outpaint_api(img_uint8, mask, bbox_s, bbox_o)
-                    if result is not None:
-                        return result.astype(np.float32)
-                except Exception as e:
-                    print(f"腾讯云AI扩图失败，回退到OpenCV: {e}")
-            elif self.ai_outpaint_method == "api" and self.ai_outpaint_api_url:
-                try:
-                    result = self.call_ai_outpaint_api(img_uint8, mask, bbox_s, bbox_o)
-                    if result is not None:
-                        return result.astype(np.float32)
-                except Exception as e:
-                    print(f\"自定义AI扩图API失败，回退到OpenCV: {e}\")
-        
-        # 后备方案：使用OpenCV inpainting
-        return self.opencv_inpaint_fallback(img_uint8, mask).astype(np.float32)
+        # 只使用腾讯云AI扩图；失败时抛出异常，让你看到具体报错
+        if not self.use_ai_outpaint:
+            return img  # 显式关闭时直接返回原图
+
+        result = self.call_tencent_outpaint_api(img_uint8, mask, bbox_s, bbox_o)
+        if result is None:
+            raise RuntimeError("腾讯云AI扩图返回空结果，请检查参数和配额。")
+        return result.astype(np.float32)
     
     def call_tencent_outpaint_api(self, img, mask, bbox_s, bbox_o):
         """
@@ -328,73 +305,6 @@ class SpatialSenseDataset(Dataset):
         result_img = cv2.imdecode(result_arr, cv2.IMREAD_COLOR)
         return result_img[:, :, ::-1]  # 转为RGB
 
-    def call_ai_outpaint_api(self, img, mask, bbox_s, bbox_o):
-        """
-        调用AI扩图API
-        
-        这个方法需要用户根据自己使用的API进行实现。
-        常见的AI扩图API包括：
-        - Stable Diffusion API
-        - DALL-E API  
-        - 其他图像生成服务的API
-        
-        Args:
-            img: numpy array (H, W, 3), uint8格式
-            mask: numpy array (H, W), uint8格式，255表示需要扩图的区域
-            bbox_s: subject bbox
-            bbox_o: object bbox
-            
-        Returns:
-            outpainted_img: numpy array (H, W, 3), uint8格式，扩图后的图像
-            如果API调用失败，返回None
-        """
-        # TODO: 用户需要在这里实现自己的API调用逻辑
-        # 示例代码结构：
-        #
-        # import requests
-        # import base64
-        # 
-        # # 将图像和mask转换为base64
-        # img_pil = Image.fromarray(img)
-        # mask_pil = Image.fromarray(mask)
-        # 
-        # # 准备API请求
-        # files = {
-        #     'image': ('image.jpg', img_pil, 'image/jpeg'),
-        #     'mask': ('mask.jpg', mask_pil, 'image/jpeg')
-        # }
-        # headers = {'Authorization': f'Bearer {self.ai_outpaint_api_key}'}
-        # 
-        # # 调用API
-        # response = requests.post(
-        #     self.ai_outpaint_api_url,
-        #     files=files,
-        #     headers=headers,
-        #     timeout=self.ai_outpaint_timeout
-        # )
-        # 
-        # if response.status_code == 200:
-        #     result_img = Image.open(io.BytesIO(response.content))
-        #     return np.array(result_img)
-        # else:
-        #     return None
-        
-        # 当前返回None，表示未实现，将使用OpenCV后备方案
-        return None
-    
-    def opencv_inpaint_fallback(self, img_uint8, mask):
-        """
-        OpenCV inpainting后备方案
-        
-        Args:
-            img_uint8: numpy array (H, W, 3), uint8格式
-            mask: numpy array (H, W), uint8格式
-            
-        Returns:
-            inpainted_img: numpy array (H, W, 3), uint8格式
-        """
-        inpainted_img = cv2.inpaint(img_uint8, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
-        return inpainted_img
     
     def paint_object_red(self, img, bbox_o):
         """
