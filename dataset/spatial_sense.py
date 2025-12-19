@@ -192,6 +192,16 @@ class SpatialSenseDataset(Dataset):
             min(iw, new_bbox_o[3])
         ]
         
+        # 8. 验证裁剪后的bbox是否有效（高度和宽度必须大于0）
+        h_s = new_bbox_s[1] - new_bbox_s[0]
+        w_s = new_bbox_s[3] - new_bbox_s[2]
+        h_o = new_bbox_o[1] - new_bbox_o[0]
+        w_o = new_bbox_o[3] - new_bbox_o[2]
+        
+        if h_s <= 0 or w_s <= 0 or h_o <= 0 or w_o <= 0:
+            # 如果bbox无效，标记为无效样本
+            is_valid = False
+        
         return centered_img, new_bbox_s, new_bbox_o, is_valid, iou
 
     def inpaint_missing_regions(self, img, bbox_s, bbox_o):
@@ -521,11 +531,25 @@ class SpatialSenseDataset(Dataset):
         w1 = bbox1[3] - bbox1[2]
         h2 = bbox2[1] - bbox2[0]
         w2 = bbox2[3] - bbox2[2]
+        
+        # 安全检查：确保bbox尺寸为正数
+        if h1 <= 0 or w1 <= 0 or h2 <= 0 or w2 <= 0:
+            # 如果bbox无效，返回默认值
+            return [0.0, 0.0, 0.0, 0.0]
+        
+        # 计算比值，确保为正数
+        h_ratio = h1 / float(h2)
+        w_ratio = w1 / float(w2)
+        
+        # 确保比值为正数（虽然理论上应该总是正数，但添加检查以防万一）
+        if h_ratio <= 0 or w_ratio <= 0:
+            return [0.0, 0.0, 0.0, 0.0]
+        
         return [
             (bbox1[0] - bbox2[0]) / float(h2),
             (bbox1[2] - bbox2[2]) / float(w2),
-            math.log(h1 / float(h2)),
-            math.log(w1 / float(w2)),
+            math.log(h_ratio),
+            math.log(w_ratio),
         ]
 
     @staticmethod
