@@ -74,11 +74,12 @@ class SpatialSenseDataset(Dataset):
                     self.annot_idx_each_predicate[annot['predicate']].append(idx)
                     idx += 1
 
-        # AI扩图配置（仅使用腾讯云 ImageOutpainting）
+        # AI扩图配置（本地 Stable Diffusion WebUI）
         self.use_ai_outpaint = True  # 是否使用AI扩图（默认启用）
-        # 需在环境中配置 TENCENTCLOUD_SECRET_ID / TENCENTCLOUD_SECRET_KEY
-        self.ai_outpaint_region = "ap-guangzhou"
-        self.ai_outpaint_ratio = None  # 若为None则按图像长宽自动选 4:3 或 3:4
+        # Stable Diffusion WebUI 服务地址（仅本机，不走外网）
+        self.webui_url = "http://127.0.0.1:7860"
+        # 调用 img2img 接口进行局部扩图/修复
+        self.webui_img2img_endpoint = "/sdapi/v1/img2img"
         self.ai_outpaint_timeout = 30  # 秒
         
         # 保存扩图图像的配置
@@ -95,9 +96,9 @@ class SpatialSenseDataset(Dataset):
         print(f"  重合阈值: IoU > {self.overlap_threshold}")
         print(f"  Subject居中: 启用（仅宽度方向）")
         print(f"  Object涂红: 启用")
-        print(f"  AI扩图补全(腾讯云): {'启用' if self.use_ai_outpaint else '禁用'}")
+        print(f"  AI扩图补全(本地WebUI): {'启用' if self.use_ai_outpaint else '禁用'}")
         if self.use_ai_outpaint:
-            print(f"    Region: {self.ai_outpaint_region}")
+            print(f"    WebUI地址: {self.webui_url}")
         if self.save_outpaint_samples:
             print(f"  保存扩图样本: 启用 (最多{self.max_save_samples}张，保存到 {self.save_dir})")
         print(f"{'='*70}\n")
@@ -255,56 +256,84 @@ class SpatialSenseDataset(Dataset):
         if np.sum(mask) == 0:
             return img
         
-        # 只使用腾讯云AI扩图；失败时抛出异常，让你看到具体报错
-        if not self.use_ai_outpaint:
-            return img  # 显式关闭时直接返回原图
-
-        result = self.call_tencent_outpaint_api(img_uint8, mask, bbox_s, bbox_o)
-        if result is None:
-            raise RuntimeError("腾讯云AI扩图返回空结果，请检查参数和配额。")
-        return result.astype(np.float32)
+        # 尝试使用本地 Stable Diffusion WebUI 扩图
+        if self.use_ai_outpaint:
+            try:
+                result = self.call_webui_outpaint(img_uint8, mask, bbox_s, bbox_o)
+                if result is not None:
+                    return result.astype(np.float32)
+            except Exception as e:
+                print(f\"本地WebUI扩图失败，回退到OpenCV: {e}\")
+        
+        # 后备方案：使用OpenCV inpainting
+        return self.opencv_inpaint_fallback(img_uint8, mask).astype(np.float32)
     
-    def call_tencent_outpaint_api(self, img, mask, bbox_s, bbox_o):
+    def call_webui_outpaint(self, img, mask, bbox_s, bbox_o):
         """
-        调用腾讯云 ImageOutpainting 接口
-        依赖环境变量：TENCENTCLOUD_SECRET_ID, TENCENTCLOUD_SECRET_KEY
+        调用本地 Stable Diffusion WebUI (AUTOMATIC1111) 进行扩图/修复
+        仅访问 127.0.0.1，不走外网。
         """
-        import base64
-        import os
-        from tencentcloud.common import credential
-        from tencentcloud.aiart.v20221229 import aiart_client, models
-
-        # 读取凭证
-        secret_id = os.getenv("TENCENTCLOUD_SECRET_ID")
-        secret_key = os.getenv("TENCENTCLOUD_SECRET_KEY")
-        if not secret_id or not secret_key:
-            raise RuntimeError("缺少腾讯云凭证，请设置 TENCENTCLOUD_SECRET_ID / TENCENTCLOUD_SECRET_KEY")
-
-        # 编码图片为base64
-        img_b64 = base64.b64encode(img).decode("utf-8")
-
-        # 选择比例：如未指定，根据宽高选择 4:3 / 3:4
-        h, w, _ = img.shape
-        ratio = self.ai_outpaint_ratio
-        if ratio is None:
-            ratio = "4:3" if w >= h else "3:4"
-
-        cred = credential.Credential(secret_id, secret_key)
-        client = aiart_client.AiartClient(cred, self.ai_outpaint_region)
-        req = models.ImageOutpaintingRequest()
-        req.Ratio = ratio
-        req.InputImage = img_b64
-        req.RspImgType = "base64"
-
-        resp = client.ImageOutpainting(req)
-        if not hasattr(resp, "ResultImage") or resp.ResultImage is None:
+        try:
+            import base64
+            import io
+            import requests
+            from PIL import Image
+        except ImportError as e:
+            print(f\"本地WebUI扩图依赖缺失({e}), 请安装 requests 和 pillow，回退到OpenCV。")
             return None
 
-        result_bytes = base64.b64decode(resp.ResultImage)
-        result_arr = np.asarray(bytearray(result_bytes), dtype=np.uint8)
-        result_img = cv2.imdecode(result_arr, cv2.IMREAD_COLOR)
-        return result_img[:, :, ::-1]  # 转为RGB
+        # 准备 init_image（RGB）和 mask（L）
+        img_pil = Image.fromarray(img)
+        mask_pil = Image.fromarray(mask).convert(\"L\")
 
+        # 编码为 base64 PNG
+        def pil_to_b64(pil_img):
+            buf = io.BytesIO()
+            pil_img.save(buf, format=\"PNG\")
+            b64 = base64.b64encode(buf.getvalue()).decode(\"utf-8\")
+            return b64
+
+        img_b64 = pil_to_b64(img_pil)
+        mask_b64 = pil_to_b64(mask_pil)
+
+        payload = {
+            \"init_images\": [img_b64],
+            \"mask\": mask_b64,
+            # 基本参数，可按需在 WebUI 界面找到对应含义再调
+            \"inpainting_fill\": 1,         # 仅填充蒙版区域
+            \"inpaint_full_res\": False,    # 低分辨率修复整图
+            \"denoising_strength\": 0.75,
+            \"prompt\": \"\",               # 你可以在这里加上场景提示
+            \"negative_prompt\": \"\",
+            \"sampler_name\": \"Euler a\",
+            \"steps\": 30,
+        }
+
+        url = self.webui_url.rstrip(\"/\") + self.webui_img2img_endpoint
+        resp = requests.post(url, json=payload, timeout=self.ai_outpaint_timeout)
+        resp.raise_for_status()
+        data = resp.json()
+        if \"images\" not in data or not data[\"images\"]:
+            return None
+
+        out_b64 = data[\"images\"][0]
+        out_bytes = base64.b64decode(out_b64)
+        out_pil = Image.open(io.BytesIO(out_bytes)).convert(\"RGB\")
+        return np.array(out_pil)
+    
+    def opencv_inpaint_fallback(self, img_uint8, mask):
+        """
+        OpenCV inpainting后备方案
+        
+        Args:
+            img_uint8: numpy array (H, W, 3), uint8格式
+            mask: numpy array (H, W), uint8格式
+            
+        Returns:
+            inpainted_img: numpy array (H, W, 3), uint8格式
+        """
+        inpainted_img = cv2.inpaint(img_uint8, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+        return inpainted_img
     
     def paint_object_red(self, img, bbox_o):
         """
